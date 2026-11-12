@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Exam Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .content { max-width: 1180px; margin: 0 auto; padding: 28px 24px 60px; }
+  .page-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  .page-head h2 { font-size: 22px; }
+  .head-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .head-actions select.input { width: auto; min-width: 260px; }
+  .sub { color: var(--text-muted); font-size: 13px; margin-bottom: 14px; }
+  .print-only { display: none; }
+  .tab-active { background: var(--navy) !important; color: white !important; }
+
+  .chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .chip { background: white; border-radius: 10px; padding: 8px 16px; box-shadow: 0 1px 4px rgba(15,38,71,0.06); font-size: 11px; text-transform: uppercase; color: var(--text-muted); }
+  .chip strong { display: block; font-size: 21px; color: var(--navy); text-transform: none; }
+  .notice { background: #EFF6FF; color: #1E40AF; border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 12px; line-height: 1.5; }
+
+  .spot-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 16px 0 20px; }
+  @media (max-width: 950px) { .spot-grid { grid-template-columns: 1fr; } }
+  .spot { background: white; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  .spot h4 { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); margin-bottom: 8px; }
+  .spot-row { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .spot-row:last-child { border-bottom: none; }
+  .spot-row b { white-space: nowrap; }
+  .spot-empty { font-size: 13px; color: var(--text-muted); }
+
+  .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .toolbar select.input { width: auto; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  th, td { text-align: left; padding: 10px 12px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--bg); color: var(--text-muted); text-transform: uppercase; font-size: 11px; letter-spacing: .5px; }
+  tr.q-row { cursor: pointer; }
+  tr.q-row:hover { background: #F8FAFC; }
+  tr.detail-row { display: none; }
+  tr.detail-row.open { display: table-row; }
+  tr.detail-row td { background: var(--bg); padding: 14px 18px; }
+  .muted { color: var(--text-muted); font-size: 12px; }
+  .empty { text-align: center; color: var(--text-muted); padding: 60px 20px; }
+
+  .flag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; margin: 0 4px 3px 0; }
+  .flag.review, .flag.bad_key { background: var(--danger-bg); color: var(--danger); }
+  .flag.high_skip { background: #FEF3C7; color: #92400E; }
+  .d-good { color: var(--emerald-dark); font-weight: 700; } .d-mid { color: var(--navy); font-weight: 700; }
+  .d-hard { color: #B45309; font-weight: 700; } .d-vhard { color: var(--danger); font-weight: 700; }
+
+  .q-full { font-size: 14px; font-weight: 600; line-height: 1.5; margin-bottom: 10px; }
+  .opt-line { display: flex; gap: 10px; align-items: center; font-size: 12.5px; margin: 6px 0; }
+  .opt-name { width: 40%; min-width: 120px; }
+  .opt-bar { flex: 1; background: #E2E8F0; border-radius: 6px; height: 10px; overflow: hidden; }
+  .opt-fill { height: 100%; background: #94A3B8; }
+  .opt-fill.right { background: var(--emerald); } .opt-fill.topwrong { background: var(--danger); }
+  .opt-num { width: 92px; text-align: right; font-family: monospace; }
+  .fine { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+
+  @media print {
+    #sidebar-slot, .no-print { display: none !important; }
+    body { background: white !important; }
+    .main { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+    .content { max-width: none; padding: 0; }
+    .print-only { display: block; margin-bottom: 10px; }
+    tr.detail-row { display: table-row !important; }
+    tr { break-inside: avoid; }
+    .chip, .spot, table { box-shadow: none !important; border: 1px solid #ddd; }
+  }
+</style>
+</head>
+<body class="has-sidebar">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+    <div class="content">
+      <div class="page-head">
+        <h2>📊 Exam Analytics</h2>
+        <div class="head-actions no-print">
+          <select class="input" id="examPicker" onchange="load()"></select>
+<select class="input" id="bundlePicker" style="display:none;" onchange="load()"></select>
+          <button class="btn btn-ghost" id="xlsBtn" onclick="exportExcel()">⬇ Excel</button>
+          <button class="btn btn-ghost" onclick="window.print()">🖨 Save as PDF</button>
+        </div>
+      </div>
+      <div class="bar no-print" style="display:flex;gap:8px;margin-bottom:12px;">
+  <button class="btn btn-ghost tab-active" id="tabSingle" onclick="setMode('single')">Single Exams</button>
+  <button class="btn btn-ghost" id="tabBundle" onclick="setMode('bundle')">Bundles</button>
+</div>
+      <div class="sub no-print">How the exam went, question by question. Based on each candidate's latest submitted attempt.</div>
+      <div class="print-only" id="printTitle"></div>
+
+      <div id="notices"></div>
+      <div class="chips" id="chips"></div>
+      <div class="spot-grid" id="spots"></div>
+
+      <div class="toolbar">
+        <strong style="font-size:15px;">All questions</strong>
+        <span class="no-print">Sort by
+          <select class="input" id="sortKey" onchange="sortKey = this.value; renderTable()">
+            <option value="order">Question order</option>
+            <option value="hardest">Hardest first</option>
+            <option value="skipped">Most skipped</option>
+            <option value="slowest">Slowest</option>
+            <option value="review">Needs review</option>
+          </select>
+        </span>
+      </div>
+      <div id="tableContainer"><div class="empty">Loading…</div></div>
+      <div class="fine">Difficulty index = % of candidates given the question who answered it correctly (skipped counts as not correct). Easy 80%+, Moderate 50–79%, Hard 30–49%, Very hard under 30%. Only objective questions are analysed here.</div>
+    </div>
+  </div>
+
+<script>
+const API = window.location.origin;
+const params = new URLSearchParams(window.location.search);
+let data = null;
+let sortKey = 'order';
+let mode = new URLSearchParams(window.location.search).get('bundle_code') ? 'bundle' : 'single';
+const openRows = new Set();
+const FLAG_LABEL = { review: 'Check answer key', bad_key: 'Key matches no option', high_skip: 'Often skipped' };
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+function escAttr(s) { return esc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+function cut(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n) + '…' : s; }
+function fmtTime(sec) {
+  if (sec === null || sec === undefined) return '—';
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return m ? `${m}m ${s}s` : `${s}s`;
+}
+function dClass(p) { return p === null ? '' : p >= 80 ? 'd-good' : p >= 50 ? 'd-mid' : p >= 30 ? 'd-hard' : 'd-vhard'; }
+
+async function api(path) {
+  const res = await fetch(API + path);
+  if (res.status === 401) { window.location.href = '/admin-login'; throw new Error('Not logged in'); }
+  let body = {};
+  try { body = await res.json(); } catch (e) { /* no body */ }
+  return { ok: res.ok, status: res.status, body };
+}
+
+async function loadPicker() {
+  const [e, b] = await Promise.all([
+    api('/api/results/exams'),
+    api('/api/analytics/bundles')
+  ]);
+  const exams = Array.isArray(e.body) ? e.body : [];
+  const bundles = Array.isArray(b.body) ? b.body : [];
+
+  document.getElementById('examPicker').innerHTML = exams.length
+    ? exams.map(x => `<option value="${escAttr(x.exam_code)}">${esc(x.exam_title)}</option>`).join('')
+    : '<option value="">No submitted exams yet</option>';
+  document.getElementById('bundlePicker').innerHTML = bundles.length
+    ? bundles.map(x => `<option value="${escAttr(x.bundle_code)}">${esc(x.bundle_title)}</option>`).join('')
+    : '<option value="">No submitted bundles yet</option>';
+
+  document.getElementById('tabSingle').classList.toggle('tab-active', mode === 'single');
+  document.getElementById('tabBundle').classList.toggle('tab-active', mode === 'bundle');
+  document.getElementById('examPicker').style.display = mode === 'single' ? '' : 'none';
+  document.getElementById('bundlePicker').style.display = mode === 'bundle' ? '' : 'none';
+
+  if (!exams.length && !bundles.length) {
+    document.getElementById('tableContainer').innerHTML =
+      '<div class="empty">Analytics appear once candidates have submitted an exam or bundle.</div>';
+    return;
+  }
+  load();
+}
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('tabSingle').classList.toggle('tab-active', m === 'single');
+  document.getElementById('tabBundle').classList.toggle('tab-active', m === 'bundle');
+  document.getElementById('examPicker').style.display = m === 'single' ? '' : 'none';
+  document.getElementById('bundlePicker').style.display = m === 'bundle' ? '' : 'none';
+  load();
+}
+
+async function load() {
+  const code = (mode === 'single'
+    ? document.getElementById('examPicker')
+    : document.getElementById('bundlePicker')).value;
+  if (!code) return;
+  document.getElementById('tableContainer').innerHTML = '<div class="empty">Working it out…</div>';
+  try {
+    const path = mode === 'single'
+      ? '/api/analytics/exam/' + encodeURIComponent(code)
+      : '/api/analytics/bundle/' + encodeURIComponent(code);
+    const r = await api(path);
+    if (!r.ok) throw new Error(r.body.error || 'Could not load the analytics.');
+    data = r.body;
+    openRows.clear();
+    document.title = 'Analytics - ' + (data.kind === 'bundle' ? data.bundle.title : data.exam.title);
+    render();
+  } catch (err) {
+    document.getElementById('tableContainer').innerHTML = `<div class="empty">${esc(err.message)}</div>`;
+  }
+}
+
+function render() {
+  if (data.kind === 'bundle') return renderBundle();
+  const s = data.summary, t = data.timing, total = data.exam.questions_total_marks;
+  document.getElementById('printTitle').innerHTML = `<h2>${esc(data.exam.title)}</h2><div class="muted">Exam analytics · ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>`;
+
+  const notices = [];
+  if (!s.candidates) notices.push('Nobody has submitted this exam yet.');
+  if (s.in_bundle) notices.push(`${s.in_bundle} of these candidate(s) took this exam inside a bundle.`);
+  if (s.candidates && t.attempts_with_events === 0) {
+    notices.push('Time per question is empty because activity recording was off while this exam was taken. Turn on “Record exam activity for Replay” under <a href="/admin-features">Features</a> before the next exam.');
+  } else if (s.candidates && t.attempts_with_events < t.total_attempts) {
+    notices.push(`Time per question is based on ${t.attempts_with_events} of ${t.total_attempts} candidates (the others were taken without activity recording).`);
+  }
+  document.getElementById('notices').innerHTML = notices.map(n => `<div class="notice">${n}</div>`).join('');
+
+  const chips = [
+    ['Candidates', s.candidates],
+    ['Average score', s.average_score === null ? '—' : `${s.average_score} / ${total}`],
+    ['Median', s.median_score === null ? '—' : s.median_score],
+    ['Highest', s.highest_score === null ? '—' : s.highest_score],
+    ['Lowest', s.lowest_score === null ? '—' : s.lowest_score],
+    ['Pass rate', `${s.pass_rate}% (${s.passed})`],
+    ['Avg % correct', s.avg_percent_correct === null ? '—' : s.avg_percent_correct + '%'],
+    ['Avg time to finish', s.avg_minutes_to_finish === null ? '—' : s.avg_minutes_to_finish + ' min']
+  ];
+  document.getElementById('chips').innerHTML = chips.map(([l, v]) => `<div class="chip"><strong>${esc(v)}</strong>${l}</div>`).join('');
+
+  const qs = data.questions.filter(q => q.assigned > 0);
+  const hardest = [...qs].sort((a, b) => a.difficulty - b.difficulty).slice(0, 5);
+  const skipped = qs.filter(q => q.skipped > 0).sort((a, b) => b.skip_rate - a.skip_rate).slice(0, 5);
+  const review = qs.filter(q => q.flags.includes('review') || q.flags.includes('bad_key')).slice(0, 5);
+  const spot = (title, list, val) => `<div class="spot"><h4>${title}</h4>${list.length
+    ? list.map(q => `<div class="spot-row" data-q="${q.number}"><span>Q${q.number} · ${esc(cut(q.text, 46))}</span><b>${val(q)}</b></div>`).join('')
+    : '<div class="spot-empty">Nothing to flag.</div>'}</div>`;
+  document.getElementById('spots').innerHTML =
+    spot('Hardest questions', hardest, q => (q.difficulty === null ? '—' : q.difficulty + '% right')) +
+    spot('Most skipped', skipped, q => q.skip_rate + '% skipped') +
+    spot('Needs review', review, q => (q.flags.includes('bad_key') ? 'Bad key' : 'Check key'));
+
+   renderTable();
+}
+
+function renderBundle() {
+  const items = data.items || [];
+  document.getElementById('printTitle').innerHTML =
+    `<h2>${esc(data.bundle.title)}</h2><div class="muted">Bundle analytics · ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>`;
+
+  document.getElementById('notices').innerHTML = items.length ? '' : '<div class="notice">This bundle has no submitted items yet.</div>';
+  document.getElementById('chips').innerHTML =
+    `<div class="chip"><strong>${esc(data.summary.candidates)}</strong>Candidates</div>` +
+    `<div class="chip"><strong>${esc(items.length)}</strong>Exam parts</div>`;
+  document.getElementById('spots').innerHTML = '';
+
+  const container = document.getElementById('tableContainer');
+  if (!items.some(p => (p.questions || []).length)) {
+    container.innerHTML = '<div class="empty">This bundle has no objective questions to analyse.</div>';
+    return;
+  }
+
+  let html = '';
+  items.forEach((part, i) => {
+    const qs = [...(part.questions || [])].sort(SORTERS[sortKey] || SORTERS.order);
+    if (!qs.length) return;
+    html += `<div style="margin:18px 0 6px;font-weight:700;font-size:15px;">Part ${i + 1} · ${esc(part.exam.title)}</div>`;
+    html += `<table><thead><tr><th>#</th><th>Question</th><th>Given to</th><th>Difficulty index</th><th>Skipped</th><th>Avg time</th><th>Most chosen wrong option</th><th>Notes</th></tr></thead><tbody>`;
+    html += qs.map(q => {
+      const key = `${i + 1}.${q.number}`;
+      const flags = q.flags.map((f, k) => `<span class="flag ${f}" title="${escAttr(q.flag_text[k])}">${FLAG_LABEL[f]}</span>`).join('');
+      const isOpen = openRows.has(key);
+      return `<tr class="q-row" data-q="${key}">
+        <td>${q.number}</td>
+        <td>${esc(cut(q.text, 90))}</td>
+        <td>${q.assigned}</td>
+        <td>${q.difficulty === null ? '—' : `<span class="${dClass(q.difficulty)}">${q.difficulty}%</span> <span class="muted">${q.difficulty_label}</span>`}</td>
+        <td>${q.skip_rate}% <span class="muted">(${q.skipped})</span></td>
+        <td>${fmtTime(q.avg_seconds)}</td>
+        <td>${q.top_wrong ? `${esc(cut(q.top_wrong.text, 40))} <span class="muted">(${q.top_wrong.count})</span>` : '<span class="muted">—</span>'}</td>
+        <td>${flags}</td>
+      </tr>
+      <tr class="detail-row ${isOpen ? 'open' : ''}" id="d-${key}"><td colspan="8">
+        <div class="q-full">Q${q.number}. ${esc(q.text)}</div>${optionBars(q)}
+        ${q.flag_text.length ? `<div class="fine">${q.flag_text.map(esc).join(' ')}</div>` : ''}
+      </td></tr>`;
+    }).join('');
+    html += `</tbody></table>`;
+  });
+  container.innerHTML = html;
+}
+
+const SORTERS = {
+  order: (a, b) => a.number - b.number,
+  hardest: (a, b) => (a.difficulty ?? 999) - (b.difficulty ?? 999) || a.number - b.number,
+  skipped: (a, b) => b.skip_rate - a.skip_rate || a.number - b.number,
+  slowest: (a, b) => (b.avg_seconds ?? -1) - (a.avg_seconds ?? -1) || a.number - b.number,
+  review: (a, b) => b.flags.length - a.flags.length || a.number - b.number
+};
+
+function optionBars(q) {
+  const top = q.top_wrong ? q.top_wrong.text : null;
+  const line = (name, count, pct, cls) =>
+    `<div class="opt-line"><span class="opt-name">${name}</span><div class="opt-bar"><div class="opt-fill ${cls}" style="width:${pct}%"></div></div><span class="opt-num">${count} · ${pct}%</span></div>`;
+  let html = q.options.map(o =>
+    line((o.is_correct ? '✓ ' : '') + esc(o.text), o.count, o.pct, o.is_correct ? 'right' : (!o.is_correct && o.count > 0 && o.text === top ? 'topwrong' : ''))).join('');
+  const pctOf = (n) => (q.assigned ? Math.round((n / q.assigned) * 100) : 0);
+  if (q.other > 0) html += line('<i>Other / unrecognised answer</i>', q.other, pctOf(q.other), '');
+  if (q.no_answer > 0) html += line('<i>No answer</i>', q.no_answer, pctOf(q.no_answer), '');
+  return html || '<div class="muted">This question has no options on file.</div>';
+}
+
+function renderTable() {
+  const container = document.getElementById('tableContainer');
+  if (!data.questions.length) { container.innerHTML = '<div class="empty">This exam has no objective questions to analyse.</div>'; return; }
+
+  const list = [...data.questions].sort(SORTERS[sortKey] || SORTERS.order);
+  const body = list.map(q => {
+    const flags = q.flags.map((f, i) => `<span class="flag ${f}" title="${escAttr(q.flag_text[i])}">${FLAG_LABEL[f]}</span>`).join('');
+    const isOpen = openRows.has(q.number);
+    return `<tr class="q-row" data-q="${q.number}">
+      <td>${q.number}</td>
+      <td>${esc(cut(q.text, 90))}</td>
+      <td>${q.assigned}</td>
+      <td>${q.difficulty === null ? '—' : `<span class="${dClass(q.difficulty)}">${q.difficulty}%</span> <span class="muted">${q.difficulty_label}</span>`}</td>
+      <td>${q.skip_rate}% <span class="muted">(${q.skipped})</span></td>
+      <td>${fmtTime(q.avg_seconds)}</td>
+      <td>${q.top_wrong ? `${esc(cut(q.top_wrong.text, 40))} <span class="muted">(${q.top_wrong.count})</span>` : '<span class="muted">—</span>'}</td>
+      <td>${flags}</td>
+    </tr>
+    <tr class="detail-row ${isOpen ? 'open' : ''}" id="d-${q.number}"><td colspan="8">
+      <div class="q-full">Q${q.number}. ${esc(q.text)}</div>${optionBars(q)}
+      ${q.flag_text.length ? `<div class="fine">${q.flag_text.map(esc).join(' ')}</div>` : ''}
+    </td></tr>`;
+  }).join('');
+
+  container.innerHTML = `<table><thead><tr>
+    <th>#</th><th>Question</th><th>Given to</th><th>Difficulty index</th><th>Skipped</th><th>Avg time</th><th>Most chosen wrong option</th><th>Notes</th>
+  </tr></thead><tbody>${body}</tbody></table>`;
+}
+
+function toggleRow(n) {
+  const row = document.getElementById('d-' + n);
+  if (!row) return;
+  if (openRows.has(n)) { openRows.delete(n); row.classList.remove('open'); }
+  else { openRows.add(n); row.classList.add('open'); }
+}
+
+document.addEventListener('click', (e) => {
+  const spot = e.target.closest('.spot-row');
+  if (spot) {
+    const n = Number(spot.dataset.q);
+    openRows.add(n);
+    renderTable();
+    const row = document.getElementById('d-' + n);
+    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  const row = e.target.closest('tr.q-row');
+  if (row) toggleRow(row.dataset.q);
+});
+
+async function exportExcel() {
+  const code = document.getElementById('examPicker').value;
+  if (!code || !data) return;
+  const btn = document.getElementById('xlsBtn');
+  btn.disabled = true;
+  btn.textContent = 'Preparing…';
+  try {
+    const res = await fetch(`${API}/api/analytics/exam/${encodeURIComponent(code)}/export.xlsx`);
+    if (!res.ok) {
+      let msg = 'Could not create the Excel file.';
+      try { msg = (await res.json()).error || msg; } catch (e) { /* keep default */ }
+      alert(msg);
+      return;
+    }
+    const blob = await res.blob();
+    const slug = String(data.exam.title).replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'exam';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `analytics-${slug}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  } catch (err) {
+    alert('Download failed: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⬇ Excel';
+  }
+}
+
+async function start() {
+  try {
+    const me = (await api('/api/auth/admin-me')).body;
+    if (!me.success) { window.location.href = '/admin-login'; return; }
+    loadPicker();
+  } catch (err) {
+    window.location.href = '/admin-login';
+  }
+}
+start();
+</script>
+<script src="/sidebar.js"></script>
+<script src="/branding.js"></script>
+</body>
+</html>

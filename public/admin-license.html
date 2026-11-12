@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — License</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .content { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+  .page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .page-head h2 { font-size: 22px; }
+  .card { background: white; border-radius: 14px; padding: 22px 26px; margin-bottom: 18px; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  .pill { display: inline-block; padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+  .pill.full { background: #ECFDF5; color: var(--emerald-dark); }
+  .pill.read_only { background: #FFF7ED; color: var(--orange-dark); }
+  .pill.locked, .pill.unactivated { background: var(--danger-bg); color: var(--danger); }
+  .banner { border-radius: 10px; padding: 12px 16px; font-size: 13px; margin-bottom: 18px; background: #FFF7ED; color: var(--orange-dark); }
+  .row { display: flex; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .row:last-child { border-bottom: none; }
+  .row span:first-child { color: var(--text-muted); }
+  .row strong { color: var(--navy); }
+  #checkResult { font-size: 13px; margin-top: 12px; color: var(--text-muted); }
+</style>
+</head>
+<body class="has-sidebar">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+    <div class="content">
+      <div class="page-head">
+        <h2>License</h2>
+        <button class="btn btn-primary" id="checkBtn" onclick="checkNow()">Check with Mariobee now</button>
+      </div>
+      <div id="checkResult"></div>
+      <div id="bannerBox"></div>
+      <div class="card" id="statusCard">Loading...</div>
+      <div class="card" id="detailsCard"></div>
+    </div>
+  </div>
+
+<script>
+const API = window.location.origin;
+
+function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str ?? ''; return d.innerHTML; }
+
+const modeLabels = { full: 'Full access', read_only: 'Read-only', locked: 'Locked', unactivated: 'Not activated' };
+
+function timeAgo(iso) {
+  if (!iso) return 'Never';
+  const diffMin = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (diffMin < 1) return 'Just now';
+  if (diffMin < 60) return `${diffMin} min ago`;
+  if (diffMin < 1440) return `${Math.floor(diffMin / 60)} hr ago`;
+  return `${Math.floor(diffMin / 1440)} day(s) ago`;
+}
+
+function render(info) {
+  document.getElementById('bannerBox').innerHTML = info.warning ? `<div class="banner">${escapeHtml(info.warning)}</div>` : '';
+
+  document.getElementById('statusCard').innerHTML = `
+    <span class="pill ${info.mode}">${modeLabels[info.mode] || info.mode}</span>
+    <div style="font-size:14px; margin-top:12px; color:var(--text-muted);">${escapeHtml(info.message)}</div>`;
+
+  const candidateLimit = info.max_candidate_computers === null ? 'Unlimited' : info.max_candidate_computers;
+  document.getElementById('detailsCard').innerHTML = `
+    <div class="row"><span>Registered email</span><strong>${escapeHtml(info.email || '—')}</strong></div>
+    <div class="row"><span>License code</span><strong>${escapeHtml(info.license_key_hint || '—')}</strong></div>
+    <div class="row"><span>Expires</span><strong>${escapeHtml(info.expiry || '—')}${info.days_left !== null ? ` (${info.days_left} day(s) left)` : ''}</strong></div>
+    <div class="row"><span>Last verified online</span><strong>${timeAgo(info.last_checkin_utc)}</strong></div>
+    <div class="row"><span>This computer</span><strong>${escapeHtml(info.computer_name)}</strong></div>
+    <div class="row"><span>Admin computers licensed</span><strong>${info.max_devices === null ? '—' : info.max_devices}</strong></div>
+    <div class="row"><span>Candidate computers</span><strong>${info.candidate_seats_used} / ${candidateLimit}</strong></div>
+    <div class="row"><span>Signed by Mariobee</span><strong>${info.signed ? 'Yes' : 'Not yet (refreshes at next check-in)'}</strong></div>`;
+}
+
+async function load() {
+  try {
+    const res = await fetch(`${API}/api/license/info`);
+    if (!res.ok) { window.location.href = '/admin-login'; return; }
+    render(await res.json());
+  } catch (err) {
+    document.getElementById('statusCard').textContent = 'Failed to load: ' + err.message;
+  }
+}
+
+async function checkNow() {
+  const btn = document.getElementById('checkBtn');
+  btn.disabled = true;
+  btn.textContent = 'Checking...';
+  try {
+    const res = await fetch(`${API}/api/license/check-now`, { method: 'POST' });
+    const data = await res.json();
+    document.getElementById('checkResult').textContent =
+      data.reachable === false ? `Could not reach Mariobee: ${data.message}` : data.message;
+    if (data.info) render(data.info);
+  } catch (err) {
+    document.getElementById('checkResult').textContent = 'Check failed: ' + err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Check with Mariobee now';
+  }
+}
+
+async function checkAdminSession() {
+  try {
+    const res = await fetch(`${API}/api/auth/admin-me`);
+    const data = await res.json();
+    if (!data.success) { window.location.href = '/admin-login'; return; }
+    load();
+  } catch (err) {
+    window.location.href = '/admin-login';
+  }
+}
+checkAdminSession();
+</script>
+<script src="/sidebar.js"></script>
+<script src="/branding.js"></script>
+</body>
+</html>

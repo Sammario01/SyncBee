@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Exam Replay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .content { max-width: 1200px; margin: 0 auto; padding: 24px; }
+  .head h2 { font-size: 22px; }
+  .head .sub { color: var(--text-muted); font-size: 13px; margin: 4px 0 16px; }
+
+  .chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .chip { background: white; border-radius: 10px; padding: 8px 14px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  .chip strong { display: block; font-size: 18px; color: var(--navy); text-transform: none; }
+  .chip.warn strong { color: var(--danger); }
+
+  .layout { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
+  @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+  .panel { background: white; border-radius: 14px; padding: 18px 20px; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  .panel h4 { font-size: 12px; text-transform: uppercase; color: var(--text-muted); letter-spacing: .5px; margin-bottom: 12px; }
+
+  .flags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .flag { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: #ECFDF5; color: var(--emerald-dark); }
+  .flag.bad { background: var(--danger-bg); color: var(--danger); }
+  .flag.info { background: #EFF6FF; color: #1E40AF; }
+
+  .screen-title { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
+  .screen-title strong { color: var(--navy); }
+  .q-text { font-size: 16px; font-weight: 600; line-height: 1.5; margin: 6px 0 16px; }
+  .opt { border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; font-size: 14px; display: flex; gap: 10px; align-items: center; }
+  .opt .letter { width: 24px; height: 24px; border-radius: 50%; background: var(--navy); color: white; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+  .opt.selected { border-color: var(--orange); background: #FFF7ED; }
+  .opt.selected .letter { background: var(--orange); }
+  .opt.correct { border-color: var(--emerald); background: #ECFDF5; }
+  .opt.wrong { border-color: var(--danger); background: var(--danger-bg); }
+  .theory-box { background: var(--bg); border-radius: 10px; padding: 12px 14px; font-size: 14px; white-space: pre-wrap; min-height: 80px; }
+  .banner { border-radius: 8px; padding: 9px 12px; font-size: 13px; margin-top: 12px; background: #EFF6FF; color: #1E40AF; }
+  .placeholder { color: var(--text-muted); font-size: 14px; padding: 30px 0; text-align: center; }
+
+  .bar-outer { background: var(--bg); border-radius: 20px; height: 8px; overflow: hidden; margin-top: 14px; }
+  .bar-inner { background: var(--emerald); height: 100%; transition: width .2s ease; }
+  .bar-label { font-size: 11px; color: var(--text-muted); margin-top: 5px; }
+
+  .list-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .list-head label { font-size: 12px; color: var(--text-muted); display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  .event-list { max-height: 520px; overflow-y: auto; }
+  .event-list.only-warn .ev:not(.warn) { display: none; }
+  .ev { display: flex; gap: 10px; padding: 7px 9px; border-radius: 8px; font-size: 12.5px; cursor: pointer; opacity: .4; }
+  .ev.done { opacity: 1; }
+  .ev.active { background: #FFF7ED; outline: 1.5px solid var(--orange); }
+  .ev .t { font-family: monospace; color: var(--text-muted); flex-shrink: 0; width: 62px; }
+  .ev.warn .label { color: var(--danger); font-weight: 600; }
+  .ev.good .label { color: var(--emerald-dark); }
+  .ev.derived .label { font-style: italic; color: var(--text-muted); }
+
+  .controls { background: var(--navy); color: white; border-radius: 14px; padding: 14px 18px; margin-top: 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .controls button { background: rgba(255,255,255,0.12); color: white; border: none; border-radius: 8px; padding: 8px 14px; font-size: 14px; cursor: pointer; }
+  .controls button:hover { background: rgba(255,255,255,0.22); }
+  .controls button.play { background: var(--orange); font-weight: 700; min-width: 84px; }
+  .controls select { background: rgba(255,255,255,0.12); color: white; border: none; border-radius: 8px; padding: 8px; font-size: 13px; }
+  .controls select option { color: #111; }
+  .controls label { font-size: 12px; display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  .controls input[type=range] { flex: 1; min-width: 220px; accent-color: var(--orange); }
+  .clock { font-family: monospace; font-size: 13px; min-width: 150px; text-align: right; }
+  .error { text-align: center; color: var(--danger); padding: 60px 20px; }
+</style>
+</head>
+<body class="has-sidebar">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+    <div class="content">
+      <div id="app"><div class="placeholder">Loading replay…</div></div>
+    </div>
+  </div>
+
+<script>
+const API = window.location.origin;
+const params = new URLSearchParams(window.location.search);
+const attemptId = params.get('attempt_id');
+const bundleAttemptId = params.get('bundle_attempt_id');
+
+let data = null;
+let events = [];
+let t0 = 0;
+let idx = -1;           // index of the last event applied; -1 = before the exam started
+let playing = false;
+let timer = null;
+let speed = 5;
+let skipIdle = true;
+const questionIndex = {};   // question_id -> { n, item, q }
+const optionText = {};      // option_id -> plain text
+const attemptItems = {};    // attempt_id -> item
+
+const reasonLabels = {
+  student_manual: 'submitted by the student',
+  timeout: 'time expired',
+  anti_cheat: 'anti-cheat violation',
+  admin_force_submit: 'submitted by the administrator'
+};
+
+function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str ?? ''; return d.innerHTML; }
+
+// Question and option text is rich HTML from the exam author. Read it as plain text
+// through an inert document, so nothing in it can run or load.
+function plainText(html) {
+  return (new DOMParser().parseFromString(String(html ?? ''), 'text/html').body.textContent || '').trim();
+}
+
+function hasAnswer(v) { return v !== null && v !== undefined && String(v).trim() !== ''; }
+function shortName(s) { s = String(s || ''); return s.length > 24 ? s.slice(0, 24) + '…' : s; }
+
+function fmtClock(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = String(Math.floor(total / 3600)).padStart(2, '0');
+  const m = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
+  const s = String(total % 60).padStart(2, '0');
+  return `${h}:${m}:${s}`;
+}
+
+async function load() {
+  const url = bundleAttemptId
+    ? `${API}/api/replay/bundle/${encodeURIComponent(bundleAttemptId)}`
+    : `${API}/api/replay/attempt/${encodeURIComponent(attemptId)}`;
+  try {
+    const res = await fetch(url);
+    if (res.status === 401) { window.location.href = '/admin-login'; return; }
+    const body = await res.json();
+    if (!res.ok) { document.getElementById('app').innerHTML = `<div class="error">${escapeHtml(body.error || 'Could not load the replay.')}</div>`; return; }
+    data = body;
+    start();
+  } catch (err) {
+    document.getElementById('app').innerHTML = `<div class="error">Connection failed: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function start() {
+  data.items.forEach(item => {
+    attemptItems[item.attempt_id] = item;
+    item.questions.forEach((q, i) => {
+      questionIndex[q.question_id] = { n: i + 1, item, q };
+      q.options.forEach(o => { optionText[o.id] = plainText(o.option_text); });
+    });
+  });
+
+  events = withDerivedEvents(data.events);
+  if (events.length === 0) {
+    document.getElementById('app').innerHTML = '<div class="error">There is nothing to replay for this attempt yet.</div>';
+    return;
+  }
+  t0 = events[0].t;
+
+  document.getElementById('app').innerHTML = `
+    <div class="head">
+      <h2>🎬 ${escapeHtml(data.student_name)}</h2>
+      <div class="sub">${escapeHtml(data.title)} · ${data.kind === 'bundle' ? 'Bundle session' : 'Single exam'}${data.submission_reason ? ' · Ended: ' + escapeHtml(reasonLabels[data.submission_reason] || data.submission_reason) : ''}</div>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="layout">
+      <div class="panel"><h4>Candidate's screen</h4><div id="screen"></div></div>
+      <div class="panel">
+        <div class="list-head"><h4 style="margin:0">Timeline</h4>
+          <label><input type="checkbox" id="onlyWarn" onchange="document.getElementById('eventList').classList.toggle('only-warn', this.checked)"> Warnings only</label>
+        </div>
+        <div class="event-list" id="eventList"></div>
+      </div>
+    </div>
+    <div class="controls">
+      <button onclick="jumpTo(-1)" title="Back to start">⏮</button>
+      <button onclick="step(-1)" title="Previous event">◀</button>
+      <button class="play" id="playBtn" onclick="togglePlay()">▶ Play</button>
+      <button onclick="step(1)" title="Next event">▶</button>
+      <select onchange="speed = Number(this.value)">
+        <option value="1">1×</option><option value="2">2×</option><option value="5" selected>5×</option><option value="10">10×</option><option value="30">30×</option>
+      </select>
+      <label><input type="checkbox" id="skipIdle" checked onchange="skipIdle = this.checked"> Skip idle gaps</label>
+      <input type="range" id="scrubber" min="0" max="${events.length}" value="0" oninput="onScrub(this.value)">
+      <span class="clock" id="clock"></span>
+    </div>`;
+
+  renderSummary();
+  buildList();
+  render();
+}
+
+// Adds "left unanswered" markers: a question was opened, then the student moved on without answering it.
+function withDerivedEvents(list) {
+  const out = [];
+  const answers = {};
+  let current = null;
+  for (const e of list) {
+    if (e.type === 'answer_selected' || e.type === 'answer_changed') answers[e.question_id] = e.data ? e.data.new : null;
+    if (e.type === 'answer_cleared') delete answers[e.question_id];
+    if (e.type === 'question_opened') {
+      if (current && current.qid !== e.question_id && !hasAnswer(answers[current.qid])) {
+        out.push({ type: 'question_skipped', t: e.t, attempt_id: current.attempt_id, question_id: current.qid, derived: true });
+      }
+      current = { qid: e.question_id, attempt_id: e.attempt_id };
+    }
+    out.push(e);
+  }
+  return out;
+}
+
+function describe(e) {
+  const qi = e.question_id ? questionIndex[e.question_id] : null;
+  const isTheory = !!(qi && qi.q.question_type === 'THEORY');
+  const where = qi ? (data.kind === 'bundle' ? `${shortName(qi.item.exam_title)} · Q${qi.n}` : `question ${qi.n}`) : 'a question';
+  const d = e.data || {};
+  const E = escapeHtml;
+  const opt = (id) => {
+    if (id === null || id === undefined || id === '') return '—';
+    return optionText[id] ? `“${E(optionText[id])}”` : `“${E(String(id).slice(0, 40))}”`;
+  };
+
+  switch (e.type) {
+    case 'bundle_started':       return { icon: '📦', html: 'Bundle session started', level: 'info' };
+    case 'exam_started': { const it = attemptItems[e.attempt_id]; return { icon: '▶️', html: `Exam started${it ? ' — ' + E(it.exam_title) : ''}`, level: 'info' }; }
+    case 'page_loaded':          return { icon: '🔄', html: d.navigation === 'reload' ? 'Exam page was refreshed' : 'Exam page loaded', level: 'info' };
+    case 'question_opened':      return { icon: '👁', html: `Opened ${E(where)}`, level: 'info' };
+    case 'question_skipped':     return { icon: '⏭', html: `Left ${E(where)} unanswered`, level: 'info' };
+    case 'answer_selected':      return { icon: '✅', html: isTheory ? `Started writing ${E(where)}` : `Answered ${E(where)}: ${opt(d.new)}`, level: 'info' };
+    case 'answer_changed':       return { icon: '✏️', html: isTheory ? `Edited the written answer for ${E(where)} (${String(d.new || '').length} characters)` : `Changed ${E(where)}: ${opt(d.old)} → ${opt(d.new)}`, level: 'info' };
+    case 'answer_cleared':       return { icon: '🧹', html: `Cleared the answer for ${E(where)}`, level: 'info' };
+    case 'fullscreen_entered':   return { icon: '🖥', html: 'Entered fullscreen', level: 'info' };
+    case 'fullscreen_lost':      return { icon: '⚠️', html: 'Left fullscreen', level: 'warn' };
+    case 'fullscreen_restored':  return { icon: '🖥', html: 'Returned to fullscreen', level: 'info' };
+    case 'tab_hidden':           return { icon: '⚠️', html: 'Switched away from the exam', level: 'warn' };
+    case 'tab_visible':          return { icon: '👁', html: 'Returned to the exam', level: 'info' };
+    case 'connection_lost':      return { icon: '📵', html: 'Lost connection to the exam server', level: 'warn' };
+    case 'connection_restored':  return { icon: '📶', html: `Connection restored${d.outage_ms ? ' (offline ' + Math.round(d.outage_ms / 1000) + 's)' : ''}`, level: 'good' };
+    case 'screen_locked':        return { icon: '🔒', html: 'Screen locked by the administrator', level: 'info' };
+    case 'screen_unlocked':      return { icon: '🔓', html: 'Screen unlocked', level: 'info' };
+    case 'admin_message':        return { icon: '📢', html: `Announcement received: “${E(d.message || '')}”`, level: 'info' };
+    case 'force_submit_notice':  return { icon: '⛔', html: 'Administrator submission notice shown', level: 'info' };
+    case 'strike_logged':        return { icon: '🚩', html: `Strike recorded: ${E(d.incident_type || '')}${d.details ? ' (' + E(d.details) + ')' : ''}`, level: 'warn' };
+    case 'help_requested':       return { icon: '🖐', html: 'Asked for help', level: 'info' };
+    case 'help_resolved':        return { icon: '✔️', html: 'Help request resolved', level: 'good' };
+    case 'submitted': { const it = attemptItems[e.attempt_id]; return { icon: '🏁', html: `${it ? E(shortName(it.exam_title)) + ' ' : 'Exam '}submitted — ${E(reasonLabels[d.reason] || d.reason || 'submitted')}`, level: d.reason === 'anti_cheat' ? 'warn' : 'good' }; }
+    case 'bundle_submitted':     return { icon: '🏁', html: `Bundle submitted — ${E(reasonLabels[d.reason] || d.reason || 'submitted')}`, level: d.reason === 'anti_cheat' ? 'warn' : 'good' };
+    default:                     return { icon: '•', html: E(e.type), level: 'info' };
+  }
+}
+
+function computeState(upTo) {
+  const s = { answers: {}, currentQ: null, attemptId: null, fullscreen: null, tabVisible: true, online: true,
+              locked: false, submitted: new Set(), strikes: 0, message: null, messageAt: 0 };
+  for (let i = 0; i <= upTo; i++) {
+    const e = events[i];
+    if (e.attempt_id) s.attemptId = e.attempt_id;
+    switch (e.type) {
+      case 'question_opened': s.currentQ = e.question_id; break;
+      case 'answer_selected':
+      case 'answer_changed': s.answers[e.question_id] = e.data ? e.data.new : null; break;
+      case 'answer_cleared': delete s.answers[e.question_id]; break;
+      case 'fullscreen_entered':
+      case 'fullscreen_restored': s.fullscreen = true; break;
+      case 'fullscreen_lost': s.fullscreen = false; break;
+      case 'tab_hidden': s.tabVisible = false; break;
+      case 'tab_visible': s.tabVisible = true; break;
+      case 'connection_lost': s.online = false; break;
+      case 'connection_restored': s.online = true; break;
+      case 'screen_locked': s.locked = true; break;
+      case 'screen_unlocked': s.locked = false; break;
+      case 'admin_message': s.message = e.data && e.data.message; s.messageAt = e.t; break;
+      case 'strike_logged': s.strikes++; break;
+      case 'submitted': s.submitted.add(e.attempt_id); break;
+    }
+  }
+  return s;
+}
+
+function renderSummary() {
+  const count = (t) => events.filter(e => e.type === t).length;
+  const final = computeState(events.length - 1);
+  const opened = new Set(events.filter(e => e.type === 'question_opened').map(e => e.question_id));
+  const hasNav = opened.size > 0;
+  let unanswered = 0, neverOpened = 0;
+  data.items.forEach(it => it.questions.forEach(q => {
+    if (!hasAnswer(final.answers[q.question_id])) unanswered++;
+    if (hasNav && !opened.has(q.question_id)) neverOpened++;
+  }));
+  const refreshes = events.filter(e => e.type === 'page_loaded' && e.data && e.data.navigation === 'reload').length;
+
+  const chips = [
+    ['Duration', fmtClock(events[events.length - 1].t - t0), false],
+    ['Events', events.filter(e => !e.derived).length, false],
+    ['Answer changes', count('answer_changed'), false],
+    ['Left fullscreen', count('fullscreen_lost'), count('fullscreen_lost') > 0],
+    ['Tab switches', count('tab_hidden'), count('tab_hidden') > 0],
+    ['Disconnects', count('connection_lost'), count('connection_lost') > 0],
+    ['Page refreshes', refreshes, refreshes > 0],
+    ['Strikes', count('strike_logged'), count('strike_logged') > 0],
+    ['Unanswered at end', unanswered, false]
+  ];
+  if (hasNav) chips.push(['Never opened', neverOpened, false]);
+
+  document.getElementById('chips').innerHTML = chips.map(([label, value, warn]) =>
+    `<div class="chip ${warn ? 'warn' : ''}"><strong>${value}</strong>${label}</div>`).join('');
+}
+
+function buildList() {
+  document.getElementById('eventList').innerHTML = events.map((e, i) => {
+    const d = describe(e);
+    return `<div class="ev ${d.level}${e.derived ? ' derived' : ''}" id="ev-${i}" onclick="jumpTo(${i})">
+      <span class="t">${fmtClock(e.t - t0)}</span><span class="label">${d.icon} ${d.html}</span></div>`;
+  }).join('');
+}
+
+function renderScreen(s, nowT) {
+  const item = (s.attemptId && attemptItems[s.attemptId]) || data.items[0];
+  const itemNo = data.items.indexOf(item) + 1;
+
+  const flags = [
+    s.fullscreen === null ? ['Fullscreen: not used', 'info'] : (s.fullscreen ? ['Fullscreen ✓', ''] : ['Left fullscreen', 'bad']),
+    s.tabVisible ? ['On the exam tab ✓', ''] : ['Away from the exam tab', 'bad'],
+    s.online ? ['Connected ✓', ''] : ['Connection lost', 'bad']
+  ];
+  if (s.locked) flags.push(['Screen locked by admin', 'info']);
+  if (s.strikes) flags.push([`${s.strikes} strike(s)`, 'bad']);
+  if (s.submitted.has(item.attempt_id)) flags.push(['Submitted', '']);
+
+  const qi = s.currentQ ? questionIndex[s.currentQ] : null;
+  const total = item.questions.length;
+  const answered = item.questions.filter(q => hasAnswer(s.answers[q.question_id])).length;
+  const pct = total ? Math.round((answered / total) * 100) : 0;
+  const isSubmitted = s.submitted.has(item.attempt_id);
+
+  let body;
+  if (!qi || qi.item.attempt_id !== item.attempt_id) {
+    body = `<div class="placeholder">${idx < 0 ? 'Press Play to start the replay.' : 'Waiting for the candidate to open a question…'}</div>`;
+  } else if (qi.q.question_type === 'THEORY') {
+    body = `<div class="q-text">${qi.q.question_text}</div>
+            <div class="theory-box">${escapeHtml(s.answers[qi.q.question_id] || '')}</div>`;
+  } else {
+    const letters = 'ABCDEFGH';
+    const picked = s.answers[qi.q.question_id];
+    body = `<div class="q-text">${qi.q.question_text}</div>` + qi.q.options.map((o, i) => {
+      const selected = picked === o.id;
+      const isCorrect = isSubmitted && o.id === qi.q.correct_answer;
+      const wrong = isSubmitted && selected && o.id !== qi.q.correct_answer;
+      return `<div class="opt ${isCorrect ? 'correct' : wrong ? 'wrong' : selected ? 'selected' : ''}">
+        <span class="letter">${letters[i] || i + 1}</span><span>${o.option_text}</span>${selected ? '<span style="margin-left:auto;font-size:11px;">picked</span>' : ''}</div>`;
+    }).join('');
+  }
+
+  const showMessage = s.message && (nowT - s.messageAt) <= 8000;
+
+  document.getElementById('screen').innerHTML = `
+    <div class="flags">${flags.map(([t, c]) => `<span class="flag ${c}">${t}</span>`).join('')}</div>
+    <div class="screen-title"><strong>${escapeHtml(item.exam_title)}</strong><span>${data.items.length > 1 ? `Exam ${itemNo} of ${data.items.length} · ` : ''}${qi && qi.item === item ? `Question ${qi.n} of ${total}` : ''}</span></div>
+    ${body}
+    ${showMessage ? `<div class="banner">📢 Announcement on screen: “${escapeHtml(s.message)}”</div>` : ''}
+    <div class="bar-outer"><div class="bar-inner" style="width:${pct}%"></div></div>
+    <div class="bar-label">${answered} of ${total} answered at this moment</div>`;
+}
+
+function refreshList() {
+  const rows = document.getElementById('eventList').children;
+  for (let i = 0; i < rows.length; i++) {
+    rows[i].classList.toggle('done', i <= idx);
+    rows[i].classList.toggle('active', i === idx);
+  }
+  const active = document.getElementById('ev-' + idx);
+  if (active) active.scrollIntoView({ block: 'nearest' });
+}
+
+function render() {
+  const nowT = idx >= 0 ? events[idx].t : t0;
+  renderScreen(computeState(idx), nowT);
+  refreshList();
+  document.getElementById('scrubber').value = idx + 1;
+  document.getElementById('clock').textContent = `${fmtClock(nowT - t0)} / ${fmtClock(events[events.length - 1].t - t0)}`;
+}
+
+function updatePlayButton() {
+  document.getElementById('playBtn').textContent = playing ? '⏸ Pause' : '▶ Play';
+}
+
+function schedule() {
+  if (!playing) return;
+  if (idx >= events.length - 1) { pause(); return; }
+  const prevT = idx >= 0 ? events[idx].t : events[0].t;
+  const gap = events[idx + 1].t - prevT;
+  const real = skipIdle ? Math.min(gap, 1200) : gap;
+  timer = setTimeout(() => { idx++; render(); schedule(); }, Math.max(40, real / speed));
+}
+
+function play() {
+  if (idx >= events.length - 1) idx = -1; // finished: start over
+  playing = true;
+  updatePlayButton();
+  schedule();
+}
+function pause() { playing = false; clearTimeout(timer); updatePlayButton(); }
+function togglePlay() { playing ? pause() : play(); }
+function jumpTo(i) { pause(); idx = i; render(); }
+function step(dir) {
+  pause();
+  const n = idx + dir;
+  if (n < -1 || n > events.length - 1) return;
+  idx = n;
+  render();
+}
+function onScrub(value) { pause(); idx = Number(value) - 1; render(); }
+
+document.addEventListener('keydown', (e) => {
+  if (!data || !events.length) return;
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName) && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
+});
+
+async function checkAdminSession() {
+  try {
+    const res = await fetch(`${API}/api/auth/admin-me`);
+    const body = await res.json();
+    if (!body.success) { window.location.href = '/admin-login'; return; }
+    if (!attemptId && !bundleAttemptId) {
+      document.getElementById('app').innerHTML = '<div class="error">No attempt was selected. Open Replay Center and choose one.</div>';
+      return;
+    }
+    load();
+  } catch (err) {
+    window.location.href = '/admin-login';
+  }
+}
+checkAdminSession();
+</script>
+<script src="/sidebar.js"></script>
+<script src="/branding.js"></script>
+</body>
+</html>

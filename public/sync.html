@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SyncBee — Admin Sync</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Shared design system -->
+<link rel="stylesheet" href="/style.css">
+
+<!-- Page-specific styles -->
+<style>
+  :root {
+    --navy: #0F2647;
+    --navy-light: #1A3A5C;
+    --orange: #F5941F;
+    --orange-dark: #D97706;
+    --emerald: #10B981;
+    --emerald-dark: #047857;
+    --danger: #DC2626;
+    --danger-bg: #FEF2F2;
+    --bg: #F4F6FA;
+    --border: #E5E7EB;
+    --text-muted: #6B7280;
+  }
+
+  /* ---------- Layout ---------- */
+  body.has-sidebar { display: flex; align-items: stretch; min-height: 100vh; margin: 0; }
+  body.has-sidebar .sidebar { width: 220px; flex-shrink: 0; background: var(--navy); color: white; padding: 20px 0; }
+  body.has-sidebar .main { flex: 1; min-width: 0; padding: 28px 32px; }
+
+  /* ---------- Page header ---------- */
+  .page-header { margin-bottom: 22px; }
+  .page-header h1 {
+    font-family: 'Poppins', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--navy);
+    margin: 0 0 4px;
+  }
+  .page-header .subtitle { color: var(--text-muted); font-size: 14px; }
+
+  /* ---------- Tab bar ---------- */
+  .sync-tabs {
+    display: flex;
+    gap: 6px;
+    background: #fff;
+    padding: 6px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 4px rgba(15, 38, 71, 0.04);
+    margin-bottom: 18px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .sync-tabs::-webkit-scrollbar { display: none; }
+  .sync-tab {
+    flex: 1;
+    min-width: 150px;
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: 'Manrope', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+    white-space: nowrap;
+  }
+  .sync-tab:hover { background: var(--bg); color: var(--navy); }
+  .sync-tab.active {
+    background: var(--navy);
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(15, 38, 71, 0.18);
+  }
+  .sync-tab .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--orange);
+    display: inline-block;
+  }
+  .sync-tab.active .dot { background: var(--orange); }
+
+  /* ---------- Panels ---------- */
+  .sync-panel {
+    display: none;
+    animation: fadeUp 0.18s ease;
+  }
+  .sync-panel.show { display: block; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ---------- Cards ---------- */
+  .sync-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 22px 24px;
+    box-shadow: 0 1px 4px rgba(15, 38, 71, 0.06);
+    border: 1px solid var(--border);
+  }
+  .sync-card h3 {
+    font-family: 'Poppins', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--navy);
+    margin: 0 0 6px;
+  }
+  .sync-card .card-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    line-height: 1.55;
+    max-width: 720px;
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  .btn {
+    padding: 9px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Manrope', sans-serif;
+    transition: background 0.15s ease, transform 0.05s ease;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--orange); color: #fff; }
+  .btn-primary:hover { background: var(--orange-dark); }
+  .btn-ghost { background: var(--bg); color: var(--navy); }
+  .btn-ghost:hover { background: #EEF2F7; }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  /* ---------- Status messages ---------- */
+  .status {
+    display: none;
+    margin-top: 14px;
+    padding: 11px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+    border-left: 3px solid transparent;
+  }
+  .status.show { display: block; }
+  .status.success { background: #ECFDF5; color: #065F46; border-left-color: var(--emerald); }
+  .status.error   { background: var(--danger-bg); color: var(--danger); border-left-color: var(--danger); }
+  .status.info    { background: #EFF6FF; color: #1E40AF; border-left-color: #3B82F6; }
+
+  /* ---------- Tables ---------- */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 16px;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .data-table th {
+    text-align: left;
+    padding: 10px 14px;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .data-table td {
+    text-align: left;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: #FAFBFC; }
+
+  /* ---------- Badges ---------- */
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: #E5E7EB;
+    color: #374151;
+    text-transform: capitalize;
+  }
+  .badge.success { background: #ECFDF5; color: #065F46; }
+
+  /* ---------- Empty state ---------- */
+  .empty {
+    color: var(--text-muted);
+    text-align: center;
+    padding: 28px 16px;
+    font-size: 13px;
+    font-style: italic;
+  }
+</style>
+</head>
+
+<body class="has-sidebar">
+
+  <!-- Sidebar injected by sidebar.js -->
+  <div id="sidebar-slot"></div>
+
+  <!-- Main content -->
+  <div class="main">
+
+    <div class="page-header">
+      <h1>Sync</h1>
+      <div class="subtitle">Import exams from the Mariobee cloud and push completed results back up.</div>
+    </div>
+
+    <!-- ============ Tabs ============ -->
+    <div class="sync-tabs" role="tablist" aria-label="Sync sections">
+      <button class="sync-tab active" role="tab" data-tab="exams"  onclick="activateTab('exams', this)">
+        <span class="dot"></span> Cloud Exams
+      </button>
+      <button class="sync-tab"        role="tab" data-tab="master" onclick="activateTab('master', this)">
+        <span class="dot"></span> Reference Data
+      </button>
+      <button class="sync-tab"        role="tab" data-tab="push"   onclick="activateTab('push', this)">
+        <span class="dot"></span> Push Results
+      </button>
+      <button class="sync-tab" role="tab" data-tab="bank" onclick="activateTab('bank', this)">
+  <span class="dot"></span> Question Bank
+</button>
+    </div>
+
+    <!-- ============ Panel: Cloud Exams ============ -->
+    <section id="panel-exams" class="sync-panel show" role="tabpanel">
+      <div class="sync-card">
+        <h3>Pull Exams from Cloud</h3>
+        <div class="card-desc">Browse exams published on the cloud for your school, then import the ones you want to run locally.</div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="loadCloudExams()">Load Cloud Exams</button>
+        </div>
+        <div id="examsStatus" class="status"></div>
+        <table id="examsTable" class="data-table" style="display:none">
+          <thead>
+            <tr>
+              <th>Exam Title</th>
+              <th>Created</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="examsBody"></tbody>
+        </table>
+        <div id="examsEmpty" class="empty" style="display:none">No exams loaded yet.</div>
+      </div>
+    </section>
+
+    <!-- ============ Panel: Master Data ============ -->
+    <section id="panel-master" class="sync-panel" role="tabpanel">
+      <div class="sync-card">
+        <h3>Sync Reference Data</h3>
+        <div class="card-desc">Download the latest students, subjects, classes, and programs from the cloud. Existing records are updated, not duplicated.</div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="pullMasterData()">Sync Students, Subjects, Classes &amp; Programs</button>
+        </div>
+        <div id="masterDataStatus" class="status"></div>
+      </div>
+    </section>
+
+    <!-- ============ Panel: Push Results ============ -->
+    <section id="panel-push" class="sync-panel" role="tabpanel">
+      <div class="sync-card">
+        <h3>Push Results to Cloud</h3>
+        <div class="card-desc">Upload completed exam attempts that haven't been synced yet. Safe to run multiple times — already-synced attempts are skipped.</div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="pushResults()">Push Unsynced Results</button>
+        </div>
+        <div id="pushStatus" class="status"></div>
+      </div>
+    </section>
+
+    
+
+  </div><!-- /.main -->
+
+  <!-- ============ Page Scripts ============ -->
+  <script>
+    const API = window.location.origin;
+
+    /* ---------- Helpers ---------- */
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str ?? '';
+      return div.innerHTML;
+    }
+
+    function showStatus(elId, message, type) {
+      const el = document.getElementById(elId);
+      el.textContent = message;
+      el.className = `status show ${type}`;
+    }
+
+    /* ---------- Tab switching ---------- */
+    function activateTab(name, btn) {
+      // Toggle tab buttons
+      document.querySelectorAll('.sync-tab').forEach(t => t.classList.remove('active'));
+      if (btn) {
+        btn.classList.add('active');
+      } else {
+        const match = document.querySelector(`.sync-tab[data-tab="${name}"]`);
+        if (match) match.classList.add('active');
+      }
+
+      // Toggle panels
+      document.querySelectorAll('.sync-panel').forEach(p => p.classList.remove('show'));
+      const panel = document.getElementById(`panel-${name}`);
+      if (panel) panel.classList.add('show');
+
+      // Persist choice so a reload keeps you on the same tab
+      try { localStorage.setItem('syncbee.sync.tab', name); } catch (e) {}
+    }
+
+    // Restore last-used tab on load (falls back to 'exams')
+    (function restoreTab() {
+      let saved = 'exams';
+      try { saved = localStorage.getItem('syncbee.sync.tab') || 'exams'; } catch (e) {}
+      if (!['exams', 'master', 'push', 'bank'].includes(saved)) saved = 'exams';
+      activateTab(saved);
+    })();
+
+    /* ---------- Admin session guard ---------- */
+    async function checkAdminSession() {
+      try {
+        const res = await fetch(`${API}/api/auth/admin-me`);
+        const data = await res.json();
+        if (!data.success) {
+          window.location.href = '/admin-login';
+        }
+      } catch (err) {
+        window.location.href = '/admin-login';
+      }
+    }
+    checkAdminSession();
+
+    /* ---------- Load cloud exams ---------- */
+    async function loadCloudExams() {
+      showStatus('examsStatus', 'Loading exams from cloud…', 'info');
+      document.getElementById('examsTable').style.display = 'none';
+      document.getElementById('examsEmpty').style.display = 'none';
+
+      try {
+        const res = await fetch(`${API}/api/sync/cloud-exams`);
+        const data = await res.json();
+
+        if (data.status !== 'success') {
+          showStatus('examsStatus', data.message || 'Failed to load exams.', 'error');
+          return;
+        }
+
+        if (!data.exams || data.exams.length === 0) {
+          document.getElementById('examsEmpty').style.display = 'block';
+          showStatus('examsStatus', 'Connected — no exams found for this school.', 'info');
+          return;
+        }
+
+        const tbody = document.getElementById('examsBody');
+        tbody.innerHTML = '';
+        data.exams.forEach(exam => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${escapeHtml(exam.exam_title)}</strong></td>
+            <td>${escapeHtml(exam.created_at || '—')}</td>
+            <td><span class="badge">${escapeHtml(exam.status || 'available')}</span></td>
+            <td style="text-align:right">
+              <button class="btn btn-primary" onclick="importExam('${exam.exam_code}', this)">Import</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        document.getElementById('examsTable').style.display = 'table';
+        showStatus('examsStatus', `Found ${data.exams.length} exam(s).`, 'success');
+      } catch (err) {
+        showStatus('examsStatus', `Connection failed: ${err.message}`, 'error');
+      }
+    }
+
+    /* ---------- Import one exam ---------- */
+    async function importExam(examCode, btn) {
+      btn.disabled = true;
+      const original = btn.textContent;
+      btn.textContent = 'Importing…';
+
+      try {
+        const res = await fetch(`${API}/api/sync/pull-exam`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ exam_code: examCode })
+        });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+          btn.textContent = 'Imported ✓';
+          btn.classList.remove('btn-primary');
+          btn.classList.add('btn-ghost');
+
+          let msg = `Imported "${data.synced.exam}" — ${data.synced.questions} question(s), ${data.synced.options} option(s).`;
+          if (data.skipped_images && data.skipped_images.length > 0) {
+            msg += ` (${data.skipped_images.length} image(s) skipped — not found on server)`;
+          }
+          showStatus('examsStatus', msg, 'success');
+        } else {
+          btn.disabled = false;
+          btn.textContent = original;
+          showStatus('examsStatus', data.message || 'Import failed.', 'error');
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = original;
+        showStatus('examsStatus', `Connection failed: ${err.message}`, 'error');
+      }
+    }
+
+    /* ---------- Pull master data ---------- */
+    async function pullMasterData() {
+      showStatus('masterDataStatus', 'Syncing students, subjects, classes, and programs…', 'info');
+      try {
+        const res = await fetch(`${API}/api/sync/pull-master-data`, { method: 'POST' });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+          const s = data.synced;
+          const parts = Object.entries(s).map(([key, val]) =>
+            typeof val === 'object' ? `${key}: failed (${val.error})` : `${key}: ${val}`
+          );
+          showStatus('masterDataStatus', parts.join(' · '), 'success');
+        } else {
+          showStatus('masterDataStatus', data.message || 'Sync failed.', 'error');
+        }
+      } catch (err) {
+        showStatus('masterDataStatus', `Connection failed: ${err.message}`, 'error');
+      }
+    }
+
+    /* ---------- Push results ---------- */
+    async function pushResults() {
+      showStatus('pushStatus', 'Pushing results to cloud…', 'info');
+
+      try {
+        const res = await fetch(`${API}/api/sync/push-results`, { method: 'POST' });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+          showStatus('pushStatus', `${data.message}${data.has_more ? ' (more remain — click again)' : ''}`, 'success');
+        } else if (data.status === 'empty') {
+          showStatus('pushStatus', data.message, 'info');
+        } else {
+          showStatus('pushStatus', data.message || 'Push failed.', 'error');
+        }
+      } catch (err) {
+        showStatus('pushStatus', `Connection failed: ${err.message}`, 'error');
+      }
+    }
+  </script>
+
+  <!-- ============ Shared Scripts (must be last) ============ -->
+  <script src="/sidebar.js"></script>
+  <script src="/branding.js"></script>
+
+</body>
+</html>

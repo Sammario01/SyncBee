@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Activate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  body { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--navy); }
+  .card { background: white; border-radius: 18px; padding: 40px 36px; max-width: 400px; width: 100%; }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 18px; margin-bottom: 6px; color: var(--navy); justify-content: center; }
+  h2 { text-align: center; font-size: 18px; margin: 14px 0 4px; }
+  .sub { text-align: center; color: var(--text-muted); font-size: 13px; margin-bottom: 22px; }
+  label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 5px; margin-top: 14px; }
+  .hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="brand">
+    <svg width="26" height="26" viewBox="0 0 100 100"><polygon points="50,3 93,26 93,74 50,97 7,74 7,26" fill="#F5941F"/><text x="50" y="66" font-family="Poppins, sans-serif" font-weight="700" font-size="48" fill="#0F2647" text-anchor="middle">S</text></svg>
+    SyncBee
+  </div>
+  <h2>License Activation</h2>
+  <div class="sub">Activate this computer with your Mariobee account.</div>
+
+  <div id="alertBox" class="alert alert-error"></div>
+
+  <form id="activateForm">
+    <label>Email</label>
+    <input class="input" type="email" id="email" required autofocus />
+    <label>Account Password</label>
+    <input class="input" type="password" id="password" required />
+    <div class="hint">This password also becomes your admin login on this computer.</div>
+    <label>License Code</label>
+    <input class="input" type="text" id="licenseKey" required autocomplete="off" />
+    <button type="submit" class="btn btn-primary" id="activateBtn" style="width:100%; margin-top:22px;">Activate</button>
+  </form>
+</div>
+
+<script>
+const API = window.location.origin;
+
+document.getElementById('activateForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const license_key = document.getElementById('licenseKey').value.trim();
+  const btn = document.getElementById('activateBtn');
+  const alertBox = document.getElementById('alertBox');
+
+  alertBox.classList.remove('show');
+  btn.disabled = true;
+  btn.textContent = 'Activating...';
+
+  try {
+    const res = await fetch(`${API}/api/license/activate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, license_key })
+    });
+    const data = await res.json();
+
+    if (data.status) {
+            alertBox.style.background = '#ECFDF5';
+      alertBox.style.color = '#065F46';
+      alertBox.style.borderColor = '#A7F3D0';
+      alertBox.textContent = 'Activated successfully. Taking you to the admin login…';
+      alertBox.classList.add('show');
+      setTimeout(() => { window.location.href = '/admin-login'; }, 1200);
+    } else {
+      alertBox.textContent = data.message || 'Activation failed.';
+      alertBox.classList.add('show');
+      btn.disabled = false;
+      btn.textContent = 'Activate';
+    }
+  } catch (err) {
+    alertBox.textContent = 'Connection failed: ' + err.message;
+    alertBox.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = 'Activate';
+  }
+});
+</script>
+
+<script src="/branding.js"></script>
+</body>
+</html>

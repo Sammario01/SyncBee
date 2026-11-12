@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Incident Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .topbar { background: var(--navy); color: white; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar .brand { display: flex; align-items: center; gap: 10px; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 18px; }
+  .nav-links { display: flex; gap: 18px; flex-wrap: wrap; }
+  .nav-links a { color: #B9C6D6; text-decoration: none; font-size: 14px; }
+  .nav-links a:hover, .nav-links a.active { color: white; }
+
+  .content { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+  .page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 16px; }
+  .page-head h2 { font-size: 22px; }
+  select.input { max-width: 320px; }
+
+  .summary-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 22px; }
+  .summary-chip {
+    background: white; border-radius: 20px; padding: 8px 16px; font-size: 13px;
+    box-shadow: 0 1px 4px rgba(15,38,71,0.06); display: flex; align-items: center; gap: 8px;
+  }
+  .summary-chip .count { background: var(--danger); color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  th, td { text-align: left; padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--border); }
+  th { background: var(--bg); color: var(--text-muted); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; background: var(--danger-bg); color: var(--danger); }
+  .empty { text-align: center; color: var(--text-muted); padding: 60px 20px; }
+  .time-cell { color: var(--text-muted); font-size: 12px; }
+    .tab-active { background: var(--navy) !important; color: white !important; }
+</style>
+</head>
+<body class="has-sidebar">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+
+<div id="sidebar-slot"></div>
+
+<div class="content">
+  <div class="page-head">
+    <h2>Anti-Cheat Incidents</h2>
+       <select class="input" id="examPicker" onchange="onExamChange()"></select>
+    <select class="input" id="bundlePicker" style="display:none;" onchange="onExamChange()"></select>
+  </div>
+
+    <div style="display:flex; gap:8px; margin-bottom:16px;">
+    <button class="btn btn-ghost tab-active" id="tabSingle" onclick="setMode('single')">Single Exams</button>
+    <button class="btn btn-ghost" id="tabBundle" onclick="setMode('bundle')">Bundles</button>
+  </div>
+
+  <div class="summary-row" id="summaryRow"></div>
+  <div id="tableContainer"></div>
+</div>
+
+<script>
+const API = window.location.origin;
+let currentExam = null;
+let mode = 'single';
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+function formatTime(sqlDateTime) {
+  const d = new Date(String(sqlDateTime).replace(' ', 'T'));
+  if (isNaN(d.getTime())) return sqlDateTime;
+  return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+async function loadPickers() {
+  try {
+    const [eRes, bRes] = await Promise.all([
+      fetch(`${API}/api/incidents/exams`),
+      fetch(`${API}/api/incidents/bundles`)
+    ]);
+    const exams = await eRes.json();
+    const bundles = await bRes.json();
+
+    const examPicker = document.getElementById('examPicker');
+    const bundlePicker = document.getElementById('bundlePicker');
+
+    examPicker.innerHTML = exams.length
+      ? exams.map(e => `<option value="${e.exam_code}">${escapeHtml(e.exam_title)}</option>`).join('')
+      : '<option value="">No single exams with incidents</option>';
+
+    bundlePicker.innerHTML = bundles.length
+      ? bundles.map(b => `<option value="${b.bundle_code}">${escapeHtml(b.bundle_title)}</option>`).join('')
+      : '<option value="">No bundles with incidents</option>';
+
+    if (!exams.length && !bundles.length) {
+      document.getElementById('tableContainer').innerHTML = `<div class="empty">No anti-cheat incidents have been logged for any exam yet — good sign!</div>`;
+      return;
+    }
+
+    applyMode();
+  } catch (err) {
+    document.getElementById('tableContainer').innerHTML = `<div class="empty">Failed to load: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function applyMode() {
+  document.getElementById('tabSingle').classList.toggle('tab-active', mode === 'single');
+  document.getElementById('tabBundle').classList.toggle('tab-active', mode === 'bundle');
+  document.getElementById('examPicker').style.display = mode === 'single' ? '' : 'none';
+  document.getElementById('bundlePicker').style.display = mode === 'bundle' ? '' : 'none';
+
+  const picker = document.getElementById(mode === 'single' ? 'examPicker' : 'bundlePicker');
+  currentExam = picker.value || null;
+  
+  if (currentExam) loadIncidents();
+  else document.getElementById('tableContainer').innerHTML = `<div class="empty">No incidents logged for this selection.</div>`;
+}
+
+function setMode(m) {
+  mode = m;
+  applyMode();
+}
+
+function onExamChange() {
+  const picker = document.getElementById(mode === 'single' ? 'examPicker' : 'bundlePicker');
+  currentExam = picker.value;
+  loadIncidents();
+}
+
+async function loadIncidents() {
+  if (!currentExam) return;
+  try {
+    const path = mode === 'single'
+      ? `/api/incidents/exam/${encodeURIComponent(currentExam)}`
+      : `/api/incidents/bundle/${encodeURIComponent(currentExam)}`;
+      
+    const res = await fetch(`${API}${path}`);
+    const data = await res.json();
+    renderSummary(data.summary);
+    renderTable(data.incidents);
+  } catch (err) {
+    document.getElementById('tableContainer').innerHTML = `<div class="empty">Failed to load: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function renderSummary(summary) {
+  const container = document.getElementById('summaryRow');
+  if (summary.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  container.innerHTML = summary.map(s =>
+    `<div class="summary-chip"><span class="count">${s.count}</span> ${escapeHtml(s.name)}</div>`
+  ).join('');
+}
+
+function renderTable(incidents) {
+  if (incidents.length === 0) {
+    document.getElementById('tableContainer').innerHTML = `<div class="empty">No incidents logged for this exam.</div>`;
+    return;
+  }
+
+  const rows = incidents.map(inc => {
+    const fullName = [inc.firstname, inc.middlename, inc.lastname].filter(Boolean).join(' ') || inc.student_id;
+    return `
+      <tr>
+        <td>${escapeHtml(fullName)}</td>
+        <td>${escapeHtml(inc.section)}</td>
+        <td><span class="pill">${escapeHtml(inc.incident_type)}</span></td>
+        <td>${escapeHtml(inc.details || '—')}</td>
+        <td class="time-cell">${formatTime(inc.created_at)}</td>
+      </tr>`;
+  }).join('');
+
+  document.getElementById('tableContainer').innerHTML = `
+    <table>
+      <thead><tr><th>Student</th><th>Section</th><th>Type</th><th>Details</th><th>When</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+async function checkAdminSession() {
+  try {
+    const res = await fetch(`${API}/api/auth/admin-me`);
+    const data = await res.json();
+    if (!data.success) { window.location.href = '/admin-login'; return; }
+    loadPickers();
+  } catch (err) {
+    window.location.href = '/admin-login';
+  }
+}
+checkAdminSession();
+</script>
+
+<script src="/sidebar.js"></script>
+
+<script src="/branding.js"></script>
+ </div>
+</body>
+</html>

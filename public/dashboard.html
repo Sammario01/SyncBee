@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  html, body {
+    height: auto;
+    min-height: 100vh;
+    margin: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .topbar { position: sticky; top: 0; z-index: 10; }
+  .topbar {
+    background: var(--navy);
+    color: white;
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .topbar .brand { display: flex; align-items: center; gap: 10px; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 18px; }
+  .topbar .welcome { font-size: 14px; color: #B9C6D6; }
+  .content { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+  .content h2 { font-size: 22px; margin-bottom: 4px; }
+  .content .sub { color: var(--text-muted); font-size: 14px; margin-bottom: 28px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+
+  .exam-card {
+    background: var(--card-bg);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(15,38,71,0.08);
+    display: flex;
+    flex-direction: column;
+  }
+  .exam-card-head { padding: 18px 20px; color: white; }
+  .exam-card-head.ongoing { background: linear-gradient(135deg, var(--orange) 0%, var(--orange-dark) 100%); }
+  .exam-card-head.upcoming { background: linear-gradient(135deg, var(--navy-light) 0%, var(--navy) 100%); }
+  .exam-card-head.ended { background: linear-gradient(135deg, #6B7C93 0%, #4E5D70 100%); }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 20px; background: rgba(255,255,255,0.2);
+    margin-bottom: 10px;
+  }
+  .exam-title { font-size: 17px; font-weight: 700; line-height: 1.3; }
+
+  .exam-body { padding: 18px 20px; flex: 1; display: flex; flex-direction: column; gap: 12px; }
+  .info-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-muted); }
+  .info-row strong { color: var(--text); }
+
+  .exam-footer { padding: 0 20px 20px; }
+  .empty-state { text-align: center; color: var(--text-muted); padding: 80px 20px; font-size: 15px; }
+</style>
+</head>
+<body>
+
+<!-- <div class="topbar">
+  <div class="brand">
+    <svg width="28" height="28" viewBox="0 0 100 100">
+      <polygon points="50,3 93,26 93,74 50,97 7,74 7,26" fill="#F5941F"/>
+      <text x="50" y="66" font-family="Poppins, sans-serif" font-weight="700" font-size="48" fill="#0F2647" text-anchor="middle">S</text>
+    </svg>
+    SyncBee
+  </div>
+  <div style="display:flex; align-items:center; gap:16px;">
+    <span class="welcome" id="welcomeMsg"></span>
+    <button class="btn btn-ghost" id="logoutBtn" style="background:transparent;color:white;border-color:rgba(255,255,255,0.3);">Log Out</button>
+  </div>
+</div> -->
+
+<div class="content">
+  <h2>Your Exam Bundles</h2>
+  <div class="sub">Multi-exam sessions assigned to you.</div>
+  <div id="bundlesContainer"></div>
+
+  <h2 style="margin-top:32px;">Standalone Exams</h2>
+  <div class="sub">Exams you take on their own — bundled exams appear above.</div>
+  <div id="examsContainer"></div>
+</div>
+
+<script>
+const API = window.location.origin;
+const STATUS_META = {
+  upcoming: { label: 'Upcoming', icon: '⏰' },
+  ongoing:  { label: 'Ongoing',  icon: '🔴' },
+  ended:    { label: 'Ended',    icon: '✓' }
+};
+
+let hasBundles = false;
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+function formatTime(sqlDateTime) {
+  const d = new Date(String(sqlDateTime).replace(' ', 'T'));
+  if (isNaN(d.getTime())) return sqlDateTime;
+  return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+function actionButton(exam) {
+  if (exam.attempt_status === 'Submitted') {
+    return `<button class="btn btn-ghost" style="width:100%" disabled>Already Submitted</button>`;
+  }
+  if (exam.status === 'ongoing') {
+    const label = exam.attempt_status === 'In Progress' ? 'Continue Exam' : 'Start Exam';
+    return `<button class="btn btn-primary" style="width:100%" onclick="startExam('${exam.exam_code}')">${label}</button>`;
+  }
+  if (exam.status === 'upcoming') {
+    return `<button class="btn btn-ghost" style="width:100%" disabled>Not Yet Available</button>`;
+  }
+  return `<button class="btn btn-ghost" style="width:100%" disabled>Exam Ended</button>`;
+}
+
+function renderExams(exams) {
+  const container = document.getElementById('examsContainer');
+
+  if (exams.length === 0) {
+    const msg = hasBundles
+      ? 'No standalone exams — everything assigned to you is inside the bundles above.'
+      : 'No exams are available on this device right now.<br>Check back once your school syncs a new exam.';
+    container.innerHTML = `<div class="empty-state">${msg}</div>`;
+    return;
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+
+  exams.forEach(exam => {
+    const meta = STATUS_META[exam.status];
+    const card = document.createElement('div');
+    card.className = 'exam-card';
+    card.innerHTML = `
+      <div class="exam-card-head ${exam.status}">
+        <div class="badge">${meta.icon} ${meta.label}</div>
+        <div class="exam-title">${escapeHtml(exam.exam_title.toUpperCase())}</div>
+      </div>
+      <div class="exam-body">
+        <div class="info-row"><span>Total Marks</span><strong>${exam.total_marks}</strong></div>
+        <div class="info-row"><span>Duration</span><strong>${exam.duration_minutes} min</strong></div>
+        <div class="info-row"><span>${exam.status === 'ended' ? 'Ended' : 'Starts'}</span><strong>${formatTime(exam.status === 'ended' ? exam.end_time : exam.start_time)}</strong></div>
+      </div>
+      <div class="exam-footer">${actionButton(exam)}</div>
+    `;
+    grid.appendChild(card);
+  });
+
+  container.innerHTML = '';
+  container.appendChild(grid);
+}
+
+function renderBundles(bundles) {
+  const container = document.getElementById('bundlesContainer');
+  if (bundles.length === 0) {
+    container.innerHTML = `<div class="empty-state">No exam bundles assigned right now.</div>`;
+    return;
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+
+  bundles.forEach(b => {
+    const meta = STATUS_META[b.status];
+    let buttonHtml = `<button class="btn btn-ghost" style="width:100%" disabled>Not Yet Available</button>`;
+    if (b.attempt_status === 'Submitted') {
+      buttonHtml = `<button class="btn btn-ghost" style="width:100%" disabled>Already Submitted</button>`;
+    } else if (b.status === 'ongoing') {
+      const label = b.attempt_status === 'In Progress' ? 'Continue Session' : 'Start Session';
+      buttonHtml = `<button class="btn btn-primary" style="width:100%" onclick="startBundle('${b.bundle_code}')">${label}</button>`;
+    } else if (b.status === 'ended') {
+      buttonHtml = `<button class="btn btn-ghost" style="width:100%" disabled>Session Ended</button>`;
+    }
+
+    const card = document.createElement('div');
+    card.className = 'exam-card';
+    card.innerHTML = `
+      <div class="exam-card-head ${b.status}">
+        <div class="badge">${meta.icon} ${meta.label}</div>
+        <div class="exam-title">📦 ${escapeHtml(b.bundle_title.toUpperCase())}</div>
+      </div>
+      <div class="exam-body">
+        <div class="info-row"><span>Total Duration</span><strong>${b.total_duration_minutes} min</strong></div>
+        <div class="info-row"><span>${b.status === 'ended' ? 'Ended' : 'Starts'}</span><strong>${formatTime(b.status === 'ended' ? b.end_time : b.start_time)}</strong></div>
+      </div>
+      <div class="exam-footer">${buttonHtml}</div>
+    `;
+    grid.appendChild(card);
+  });
+
+  container.innerHTML = '';
+  container.appendChild(grid);
+}
+
+function startExam(examCode) {
+  window.location.href = `/exam-details?exam_code=${encodeURIComponent(examCode)}`;
+}
+
+function startBundle(bundleCode) {
+  window.location.href = `/bundle-details?bundle_code=${encodeURIComponent(bundleCode)}`;
+}
+
+async function loadDashboard() {
+  try {
+    const meRes = await fetch(`${API}/api/auth/me`);
+    const me = await meRes.json();
+    if (!me.success) { window.location.href = '/login'; return; }
+    document.getElementById('welcomeMsg').textContent = `${me.full_name}`;
+
+    // Bundles first — renderBundles sets hasBundles, which renderExams needs.
+    const bundlesRes = await fetch(`${API}/api/student/bundles`);
+    const bundlesData = await bundlesRes.json();
+    if (bundlesData.success) {
+      hasBundles = bundlesData.bundles.length > 0;
+      renderBundles(bundlesData.bundles);
+    }
+
+    // Exams next — backend already excludes bundled exams from this list.
+    const examsRes = await fetch(`${API}/api/student/exams`);
+    const examsData = await examsRes.json();
+    if (!examsData.success) { window.location.href = '/login'; return; }
+    renderExams(examsData.exams);
+  } catch (err) {
+    document.getElementById('examsContainer').innerHTML =
+      `<div class="empty-state">Could not load exams: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+
+loadDashboard();
+</script>
+<script src="/student-topbar.js"></script>
+</body>
+</html>

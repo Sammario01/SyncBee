@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Results</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { display: flex; height: 100vh; }
+  .topbar { background: var(--navy); color: white; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar .brand { display: flex; align-items: center; gap: 10px; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 18px; }
+  .nav-links { display: flex; gap: 18px; }
+  .nav-links a { color: #B9C6D6; text-decoration: none; font-size: 14px; }
+  .nav-links a:hover, .nav-links a.active { color: white; }
+
+  .content { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+  .page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 16px; }
+  .page-head h2 { font-size: 22px; }
+  select.input { max-width: 320px; }
+
+  .stats-row { display: flex; gap: 14px; margin-bottom: 20px; }
+  .stat-box { flex: 1; background: white; border-radius: 12px; padding: 16px 18px; box-shadow: 0 1px 4px rgba(15,38,71,0.06); text-align: center; }
+  .stat-box .num { font-size: 24px; font-weight: 700; color: var(--navy); }
+  .stat-box .label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-top: 4px; }
+
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  th, td { text-align: left; padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--border); }
+  th { background: var(--bg); color: var(--text-muted); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .pill.pass { background: #ECFDF5; color: var(--emerald-dark); }
+  .pill.fail { background: var(--danger-bg); color: var(--danger); }
+  .pill.pending { background: #FFF7ED; color: var(--orange-dark); }
+  .pill.marked { background: #EFF6FF; color: #1E40AF; }
+
+  .empty { text-align: center; color: var(--text-muted); padding: 60px 20px; }
+  .rank { font-weight: 700; color: var(--text-muted); }
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .chart-panel { background: white; border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  .chart-panel h4 { font-size: 13px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; }
+  .chart-panel canvas { max-height: 220px; }
+  .hardest-row { display: flex; justify-content: space-between; font-size: 13px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+  .hardest-row:last-child { border-bottom: none; }
+  .hardest-pct { font-weight: 700; }
+
+  .tab-active { background: var(--navy) !important; color: white !important; }
+  .breakdown-modal-box { max-width: 500px; }
+  .breakdown-row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px dashed var(--border); font-size: 13px; }
+  .breakdown-total-row { display: flex; justify-content: space-between; padding: 12px 0 0; font-weight: 700; }
+  .time-tag { font-size: 11px; color: var(--text-muted); }
+
+  .bulk-bar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+  .bulk-bar a { padding: 8px 14px; font-size: 13px; }
+  .bulk-bar a.loading { pointer-events: none; opacity: 0.6; }
+</style>
+</head>
+<body class="has-sidebar">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+
+<div class="content">
+  <div class="page-head">
+    <h2>Results <a class="btn btn-ghost" style="font-size:12px;padding:5px 10px;" href="/admin-analytics">📊 Analytics</a></h2>
+    <div style="display:flex; gap:10px;">
+      <select class="input" id="examPicker" onchange="onExamChange()"></select>
+      <select class="input" id="bundlePicker" style="display:none;" onchange="onBundleChange()"></select>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:8px; margin-bottom:20px;">
+    <button class="btn btn-ghost" id="tabSingle" onclick="switchTab('single')">Single Exams</button>
+    <button class="btn btn-ghost" id="tabBundle" onclick="switchTab('bundle')">Bundles</button>
+  </div>
+
+  <div class="stats-row" id="statsRow" style="display:none;">
+    <div class="stat-box"><div class="num" id="statTotal">0</div><div class="label">Submitted</div></div>
+    <div class="stat-box"><div class="num" id="statPass">0</div><div class="label">Passed</div></div>
+    <div class="stat-box"><div class="num" id="statAvg">0</div><div class="label">Average Score</div></div>
+  </div>
+
+  <div class="charts-grid" id="chartsGrid" style="display:none;">
+    <div class="chart-panel">
+      <h4>Score Distribution</h4>
+      <canvas id="scoreChart"></canvas>
+    </div>
+    <div class="chart-panel">
+      <h4>Hardest Questions (% answered wrong)</h4>
+      <div id="hardestList"></div>
+    </div>
+  </div>
+
+  <div id="tableContainer"></div>
+</div>
+
+<script>
+const API = window.location.origin;
+let currentExam = null;
+let examMeta = null;
+let currentMode = 'single';
+let currentBundle = null;
+
+function switchTab(mode) {
+  currentMode = mode;
+  document.getElementById('tabSingle').classList.toggle('tab-active', mode === 'single');
+  document.getElementById('tabBundle').classList.toggle('tab-active', mode === 'bundle');
+  document.getElementById('examPicker').style.display   = mode === 'single' ? 'block' : 'none';
+  document.getElementById('bundlePicker').style.display = mode === 'bundle' ? 'block' : 'none';
+  document.getElementById('chartsGrid').style.display   = 'none';
+  document.getElementById('statsRow').style.display     = 'none';
+  document.getElementById('tableContainer').innerHTML   = '<div class="empty">Loading…</div>';
+
+  if (mode === 'single') loadExamPicker();
+  else loadBundlePicker();
+}
+
+function handleZipClick(el) {
+  if (el.dataset.generating === '1') return;
+  el.dataset.generating = '1';
+  el.classList.add('loading');
+
+  const original = '📦 Download All Slips (ZIP)';
+  const html = el.innerHTML;
+
+  // Step 1: show generating immediately
+  el.innerHTML = '⏳ Generating ZIP…';
+
+  // Step 2: after ~2.5s the browser has definitely started the download
+  // (headers received, file streaming to disk). Show confirmation.
+  setTimeout(() => {
+    el.innerHTML = '✅ Download started';
+
+    // Step 3: reset the button after another 1.5s
+    setTimeout(() => {
+      el.innerHTML = original;
+      el.classList.remove('loading');
+      delete el.dataset.generating;
+    }, 1500);
+  }, 2500);
+}
+
+async function loadBundlePicker() {
+  try {
+    const res = await fetch(`${API}/api/results/bundles`);
+    const bundles = await res.json();
+    const picker = document.getElementById('bundlePicker');
+
+    if (!Array.isArray(bundles) || bundles.length === 0) {
+      picker.innerHTML = '<option>No submitted bundles yet</option>';
+      document.getElementById('tableContainer').innerHTML =
+        `<div class="empty">No students have submitted a bundle yet.</div>`;
+      return;
+    }
+
+    picker.innerHTML = bundles.map(b =>
+      `<option value="${escapeHtml(b.bundle_code)}">${escapeHtml(b.bundle_title)}</option>`
+    ).join('');
+    currentBundle = bundles[0].bundle_code;
+    await loadBundleResults();
+  } catch (err) {
+    document.getElementById('tableContainer').innerHTML =
+      `<div class="empty">Failed to load bundles: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function onBundleChange() {
+  currentBundle = document.getElementById('bundlePicker').value;
+  if (currentBundle) loadBundleResults();
+}
+
+async function loadBundleResults() {
+  if (!currentBundle) return;
+  document.getElementById('tableContainer').innerHTML = '<div class="empty">Loading…</div>';
+
+  try {
+    const res = await fetch(`${API}/api/results/bundle/${encodeURIComponent(currentBundle)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    document.getElementById('statsRow').style.display = 'flex';
+    document.getElementById('statTotal').textContent = data.results.length;
+    const avg = data.results.length
+      ? (data.results.reduce((s, r) => s + r.combined_score, 0) / data.results.length).toFixed(1)
+      : 0;
+    document.getElementById('statAvg').textContent = avg;
+    document.getElementById('statPass').textContent = `${data.results.length} total`;
+
+    if (data.results.length === 0) {
+      document.getElementById('tableContainer').innerHTML =
+        `<div class="empty">No students have submitted this bundle yet.</div>`;
+      return;
+    }
+
+    const rows = data.results.map((r, i) => `
+      <tr>
+        <td class="rank">#${i + 1}</td>
+        <td>${escapeHtml(r.full_name)}</td>
+        <td>${r.combined_score} / ${data.bundle.combined_total}</td>
+        <td><button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="viewBreakdown('${r.bundle_attempt_id}', '${escapeHtml(r.full_name).replace(/'/g, "\\'")}')">View Breakdown</button></td>
+        <td><button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="window.open('/print-bundle-result?bundle_code=${encodeURIComponent(currentBundle)}&bundle_attempt_id=${r.bundle_attempt_id}', '_blank')">🖨 Slip</button></td>
+        <td>${r.bundle_attempt_id
+          ? `<button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;"
+               onclick="window.open('/admin-audit?bundle_attempt_id=${encodeURIComponent(r.bundle_attempt_id)}', '_blank')">📋 Audit</button>`
+          : ''}</td>
+      </tr>`).join('');
+
+  const bulkBar = `
+  <div class="bulk-bar">
+    <a class="btn btn-ghost"
+       href="/api/results/bulk-zip/bundle/${encodeURIComponent(currentBundle)}"
+       onclick="handleZipClick(this)"
+       download>
+      📦 Download All Slips (ZIP)
+    </a>
+  </div>`;
+
+    document.getElementById('tableContainer').innerHTML = bulkBar + `
+      <table>
+        <thead><tr><th>Rank</th><th>Student</th><th>Combined Score</th><th></th><th></th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  } catch (err) {
+    document.getElementById('tableContainer').innerHTML =
+      `<div class="empty">Failed to load bundle results: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function viewBreakdown(bundleAttemptId, studentName) {
+  const res = await fetch(`${API}/api/results/bundle/${encodeURIComponent(currentBundle)}/breakdown/${encodeURIComponent(bundleAttemptId)}`);
+  const data = await res.json();
+
+  document.getElementById('breakdownStudentName').textContent = studentName;
+  const rows = data.breakdown.map(b => `
+    <div class="breakdown-row">
+      <span>${escapeHtml(b.exam_title)} <span class="time-tag">(${formatDuration(b.time_spent_seconds)})</span></span>
+      <span>
+        ${b.attempted ? b.score : '—'} / ${b.total_marks}
+        ${b.attempt_id ? `<button class="btn btn-ghost" style="padding:3px 8px; font-size:11px; margin-left:8px;" onclick="window.open('/admin-audit?attempt_id=${encodeURIComponent(b.attempt_id)}', '_blank')">📋</button>` : ''}
+      </span>
+    </div>`).join('');
+
+  document.getElementById('breakdownContent').innerHTML = rows + `
+    <div class="breakdown-total-row"><span>Total</span><span>${data.combined_score} / ${data.combined_total}</span></div>`;
+  document.getElementById('breakdownModal').style.display = 'flex';
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+async function loadExamPicker() {
+  if (currentExam) return loadResults();
+  try {
+    const res = await fetch(`${API}/api/results/exams`);
+    const exams = await res.json();
+    const picker = document.getElementById('examPicker');
+
+    if (!Array.isArray(exams) || exams.length === 0) {
+      picker.innerHTML = '<option>No submitted results yet</option>';
+      document.getElementById('tableContainer').innerHTML =
+        `<div class="empty">No students have submitted any exam yet.</div>`;
+      return;
+    }
+
+    picker.innerHTML = exams.map(e =>
+      `<option value="${e.exam_code}">${escapeHtml(e.exam_title)}</option>`
+    ).join('');
+    currentExam = exams[0].exam_code;
+    loadResults();
+  } catch (err) {
+    document.getElementById('tableContainer').innerHTML =
+      `<div class="empty">Failed to load: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function onExamChange() {
+  currentExam = document.getElementById('examPicker').value;
+  loadResults();
+}
+
+let scoreChartInstance = null;
+
+async function loadResults() {
+  if (!currentExam) return;
+  try {
+    const res = await fetch(`${API}/api/results/exam/${encodeURIComponent(currentExam)}`);
+    const data = await res.json();
+    examMeta = data.exam;
+    renderTable(data.results, data.has_theory);
+    renderCharts(data.results);
+    loadQuestionStats();
+  } catch (err) {
+    document.getElementById('tableContainer').innerHTML = `<div class="empty">Failed to load: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function renderCharts(results) {
+  const chartsGrid = document.getElementById('chartsGrid');
+  if (results.length === 0 || typeof Chart === 'undefined') {
+    chartsGrid.style.display = 'none';
+    return;
+  }
+  chartsGrid.style.display = 'grid';
+
+  const buckets = { '0-20%': 0, '21-40%': 0, '41-60%': 0, '61-80%': 0, '81-100%': 0 };
+  results.forEach(r => {
+    const pct = (r.score / (r.max_score > 0 ? r.max_score : examMeta.total_marks)) * 100;
+    if (pct <= 20) buckets['0-20%']++;
+    else if (pct <= 40) buckets['21-40%']++;
+    else if (pct <= 60) buckets['41-60%']++;
+    else if (pct <= 80) buckets['61-80%']++;
+    else buckets['81-100%']++;
+  });
+
+  if (scoreChartInstance) scoreChartInstance.destroy();
+  scoreChartInstance = new Chart(document.getElementById('scoreChart'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(buckets),
+      datasets: [{ data: Object.values(buckets), backgroundColor: '#0F2647', borderRadius: 6 }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+  });
+}
+
+async function loadQuestionStats() {
+  try {
+    const res = await fetch(`${API}/api/results/exam/${encodeURIComponent(currentExam)}/question-stats`);
+    const stats = await res.json();
+    const container = document.getElementById('hardestList');
+
+    if (stats.length === 0) {
+      container.innerHTML = `<div style="color:var(--text-muted); font-size:13px;">Not enough data yet.</div>`;
+      return;
+    }
+
+    container.innerHTML = stats.map(s => `
+      <div class="hardest-row">
+        <span>${s.question_text.length > 50 ? s.question_text.slice(0, 50) + '…' : s.question_text}</span>
+        <span class="hardest-pct" style="color:${s.wrong_pct > 50 ? 'var(--danger)' : 'var(--orange-dark)'}">${s.wrong_pct}% wrong</span>
+      </div>`).join('');
+  } catch (e) { /* non-critical */ }
+}
+
+function formatDuration(totalSeconds) {
+  if (totalSeconds === null || totalSeconds === undefined) return '—';
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}m ${s}s`;
+}
+
+function renderTable(results, hasTheory) {
+  const statsRow = document.getElementById('statsRow');
+
+  if (results.length === 0) {
+    statsRow.style.display = 'none';
+    document.getElementById('tableContainer').innerHTML =
+      `<div class="empty">No submitted results for this exam yet.</div>`;
+    return;
+  }
+
+  const passCount = results.filter(r => r.score >= examMeta.passing_marks).length;
+  const avgScore = (results.reduce((sum, r) => sum + (r.score || 0), 0) / results.length).toFixed(1);
+
+  statsRow.style.display = 'flex';
+  document.getElementById('statTotal').textContent = results.length;
+  document.getElementById('statPass').textContent = `${passCount}/${results.length}`;
+  document.getElementById('statAvg').textContent = `${avgScore}`;
+
+  const rows = results.map((r, i) => {
+    const fullName = [r.firstname, r.middlename, r.lastname].filter(Boolean).join(' ') || r.student_id;
+    const passed = r.score >= examMeta.passing_marks;
+    let theoryHtml = '';
+    if (hasTheory) {
+      const cls = r.theory_status.startsWith('Pending') ? 'pending' : r.theory_status.startsWith('Marked') ? 'marked' : '';
+      theoryHtml = `<td>${cls ? `<span class="pill ${cls}">${escapeHtml(r.theory_status)}</span>` : escapeHtml(r.theory_status)}</td>`;
+    }
+    return `
+      <tr>
+        <td class="rank">#${i + 1}</td>
+        <td>${escapeHtml(fullName)}</td>
+        <td>${r.score} / ${r.max_score > 0 ? r.max_score : examMeta.total_marks}</td>
+        <td><span class="pill ${passed ? 'pass' : 'fail'}">${passed ? 'Pass' : 'Fail'}</span></td>
+        ${theoryHtml}
+        <td>${r.attempt_id ? `<button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="window.open('/print-result?attempt_id=${encodeURIComponent(r.attempt_id)}', '_blank')">🖨 Slip</button>` : ''}</td>
+        <td>${r.attempt_id ? `<button class="btn btn-ghost" style="padding:5px 10px; font-size:12px;" onclick="window.open('/admin-audit?attempt_id=${encodeURIComponent(r.attempt_id)}', '_blank')">📋 Audit</button>` : ''}</td>
+      </tr>`;
+  }).join('');
+
+  const bulkBar = `
+    <div class="bulk-bar">
+      <a class="btn btn-ghost"
+         href="/api/results/bulk-zip/exam/${encodeURIComponent(currentExam)}"
+         onclick="handleZipClick(this)"
+         download>
+        📦 Download All Slips (ZIP)
+      </a>
+    </div>`;
+
+  document.getElementById('tableContainer').innerHTML = bulkBar + `
+    <table>
+      <thead><tr><th>Rank</th><th>Student</th><th>Score</th><th>Status</th>${hasTheory ? '<th>Theory</th>' : ''}<th></th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+async function checkAdminSession() {
+  try {
+    const res = await fetch(`${API}/api/auth/admin-me`);
+    const data = await res.json();
+    if (!data.success) { window.location.href = '/admin-login'; return; }
+    switchTab('single');
+  } catch (err) {
+    window.location.href = '/admin-login';
+  }
+}
+checkAdminSession();
+</script>
+
+<div class="modal-backdrop" id="breakdownModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:998;">
+  <div class="modal-box breakdown-modal-box" style="background:white; border-radius:16px; padding:24px;">
+    <h3 id="breakdownStudentName" style="margin-bottom:16px;"></h3>
+    <div id="breakdownContent"></div>
+    <button class="btn btn-ghost" style="width:100%; margin-top:16px;" onclick="document.getElementById('breakdownModal').style.display='none'">Close</button>
+  </div>
+</div>
+<script src="/sidebar.js"></script>
+<script src="/branding.js"></script>
+</div>
+</body>
+</html>

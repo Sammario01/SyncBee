@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Live Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .topbar { background: var(--navy); color: white; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar .brand { display: flex; align-items: center; gap: 10px; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 18px; }
+  .nav-links { display: flex; gap: 18px; }
+  .nav-links a { color: #B9C6D6; text-decoration: none; font-size: 14px; }
+  .nav-links a:hover, .nav-links a.active { color: white; }
+
+  .content { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+  .page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 16px; }
+  .page-head h2 { font-size: 22px; }
+  select.input { max-width: 320px; }
+
+  .stats-row { display: flex; gap: 14px; margin-bottom: 20px; }
+  .stat-box { flex: 1; background: white; border-radius: 12px; padding: 16px 18px; box-shadow: 0 1px 4px rgba(15,38,71,0.06); text-align: center; }
+  .stat-box .num { font-size: 24px; font-weight: 700; color: var(--navy); }
+  .stat-box .label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-top: 4px; }
+
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  th, td { text-align: left; padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--border); }
+  th { background: var(--bg); color: var(--text-muted); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .pill.progress { background: #EFF6FF; color: #1E40AF; }
+  .pill.submitted { background: #ECFDF5; color: var(--emerald-dark); }
+  .pill.cancelled { background: var(--danger-bg); color: var(--danger); }
+
+  .freshness { display: flex; align-items: center; gap: 6px; }
+  .freshness.stale-green  { color: var(--emerald-dark); font-weight: 600; }
+.freshness.stale-yellow { color: #C2410C; font-weight: 600; }
+.freshness.stale-red    { color: var(--danger); font-weight: 700; }
+.freshness.stale-muted  { color: var(--text-muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot.live { background: var(--emerald); }
+  .dot.stale { background: var(--orange); }
+  .dot.gone { background: var(--danger); }
+
+  .empty { text-align: center; color: var(--text-muted); padding: 60px 20px; }
+  .tab-active { background: var(--navy) !important; color: white !important; }
+</style>
+</head>
+<body class="has-sidebar">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+
+
+<div class="content">
+    <div class="page-head">
+    <h2>Live Monitor</h2>
+    <div style="display:flex; gap:10px;">
+      <select class="input" id="examPicker" onchange="onExamChange()"></select>
+      <select class="input" id="bundlePicker" style="display:none;" onchange="onBundleChangeMonitor()"></select>
+    </div>
+  </div>
+  <div style="display:flex; gap:8px; margin-bottom:16px;">
+    <button class="btn btn-ghost" id="monTabSingle" onclick="switchMonitorTab('single')">Single Exams</button>
+    <button class="btn btn-ghost" id="monTabBundle" onclick="switchMonitorTab('bundle')">Bundles</button>
+  </div>
+
+  <div class="stats-row" id="statsRow" style="display:none;">
+    <div class="stat-box"><div class="num" id="statTotal">0</div><div class="label">Total</div></div>
+    <div class="stat-box"><div class="num" id="statProgress">0</div><div class="label">In Progress</div></div>
+    <div class="stat-box"><div class="num" id="statSubmitted">0</div><div class="label">Submitted</div></div>
+  </div>
+  <div class="panel" style="background:white; border-radius:12px; padding:16px 20px; margin-bottom:20px; box-shadow:0 1px 4px rgba(15,38,71,0.06);">
+    <h4 style="font-size:13px; text-transform:uppercase; color:var(--text-muted); margin-bottom:12px;">Exam Hall Control</h4>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+          <span id="lockStatusPill" style="padding:6px 14px; border-radius:20px; font-size:12px; font-weight:700;"></span>
+      <button class="btn btn-ghost" onclick="toggleLock(true)">🔒 Lock All Screens</button>
+      <button class="btn btn-ghost" onclick="toggleLock(false)">🔓 Unlock All Screens</button>
+           <button class="btn btn-ghost" style="color:var(--danger)" onclick="forceSubmitAll()" id="forceSubmitBtn">⛔ Force Submit All</button>
+    </div>
+    <div style="display:flex; gap:10px;">
+      <input class="input" id="broadcastMessage" placeholder="Type an announcement, e.g. '5 minutes remaining!'" />
+      <button class="btn btn-primary" onclick="sendBroadcast()">Send</button>
+    </div>
+    <div id="helpRequestsBox" style="margin-top:14px;"></div>
+  </div>
+  <div id="tableContainer"></div>
+</div>
+
+<script>
+const API = window.location.origin;
+let currentExamCode = null;
+let pollTimer = null;
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+function freshnessDot(seconds) {
+  if (seconds === null) return '<span class="dot gone"></span>';
+  if (seconds < 20) return '<span class="dot live"></span>';
+  if (seconds < 60) return '<span class="dot stale"></span>';
+  return '<span class="dot gone"></span>';
+}
+
+function formatSeconds(seconds) {
+  if (seconds === null) return 'never';
+  if (seconds < 60) return `${seconds}s ago`;
+  return `${Math.floor(seconds / 60)}m ago`;
+}
+
+async function loadExamPicker() {
+  try {
+    const res = await fetch(`${API}/api/monitor/exams`);
+    const exams = await res.json();
+    const picker = document.getElementById('examPicker');
+
+    if (exams.length === 0) {
+      picker.innerHTML = '<option>No exams with attempts yet</option>';
+      document.getElementById('tableContainer').innerHTML = `<div class="empty">No students have started any exam yet.</div>`;
+      return;
+    }
+
+    picker.innerHTML = exams.map(e => `<option value="${e.exam_code}">${escapeHtml(e.exam_title)}</option>`).join('');
+    currentExamCode = exams[0].exam_code;
+    loadAttempts();
+    startPolling();
+  } catch (err) {
+    document.getElementById('tableContainer').innerHTML = `<div class="empty">Failed to load: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function onExamChange() {
+  currentExamCode = document.getElementById('examPicker').value;
+  loadAttempts();
+}
+
+async function loadAttempts() {
+  if (!currentExamCode) return;
+  try {
+    const res = await fetch(`${API}/api/monitor/exam/${encodeURIComponent(currentExamCode)}`);
+    const attempts = await res.json();
+    renderTable(attempts);
+  } catch (err) {
+    document.getElementById('tableContainer').innerHTML = `<div class="empty">Failed to load: ${escapeHtml(err.message)}</div>`;
+  }
+}
+let monitorMode = 'single';
+let currentBundleCode = null;
+
+function switchMonitorTab(mode) {
+  monitorMode = mode;
+  document.getElementById('monTabSingle').classList.toggle('tab-active', mode === 'single');
+  document.getElementById('monTabBundle').classList.toggle('tab-active', mode === 'bundle');
+  document.getElementById('examPicker').style.display = mode === 'single' ? 'block' : 'none';
+  document.getElementById('bundlePicker').style.display = mode === 'bundle' ? 'block' : 'none';
+
+  if (pollTimer) clearInterval(pollTimer);
+  if (mode === 'single') loadExamPicker();
+  else loadBundlePickerMonitor();
+}
+
+async function loadBundlePickerMonitor() {
+  const res = await fetch(`${API}/api/monitor/bundles`);
+  const bundles = await res.json();
+  const picker = document.getElementById('bundlePicker');
+
+  if (bundles.length === 0) {
+    picker.innerHTML = '<option>No bundle attempts yet</option>';
+    document.getElementById('tableContainer').innerHTML = `<div class="empty">No students have started a bundle yet.</div>`;
+    document.getElementById('statsRow').style.display = 'none';
+    return;
+  }
+
+  picker.innerHTML = bundles.map(b => `<option value="${b.bundle_code}">${escapeHtml(b.bundle_title)}</option>`).join('');
+  currentBundleCode = bundles[0].bundle_code;
+  loadBundleAttempts();
+  startBundlePolling();
+}
+
+function onBundleChangeMonitor() {
+  currentBundleCode = document.getElementById('bundlePicker').value;
+  loadBundleAttempts();
+}
+
+async function loadBundleAttempts() {
+  if (!currentBundleCode) return;
+  const res = await fetch(`${API}/api/monitor/bundle/${encodeURIComponent(currentBundleCode)}`);
+  const attempts = await res.json();
+  renderBundleTable(attempts);
+  loadHelpRequests();
+  loadLockStatus();
+}
+
+function renderBundleTable(attempts) {
+  const statsRow = document.getElementById('statsRow');
+  if (attempts.length === 0) {
+    statsRow.style.display = 'none';
+    document.getElementById('tableContainer').innerHTML = `<div class="empty">No attempts yet for this bundle.</div>`;
+    return;
+  }
+
+  statsRow.style.display = 'flex';
+  document.getElementById('statTotal').textContent = attempts.length;
+  document.getElementById('statProgress').textContent = attempts.filter(a => a.status === 'In Progress').length;
+  document.getElementById('statSubmitted').textContent = attempts.filter(a => a.status === 'Submitted').length;
+
+  const rows = attempts.map(a => {
+    const statusClass = a.status === 'In Progress' ? 'progress' : 'submitted';
+    return `
+      <tr>
+        <td>${escapeHtml(a.full_name)}</td>
+        <td>Exam ${a.current_item_order} of ${a.total_items}</td>
+        <td><span class="pill ${statusClass}">${escapeHtml(a.status)}</span></td>
+        <td>${a.items_submitted} / ${a.total_items} submitted</td>
+        <td>${a.incidents}</td>
+        <td><div class="freshness">${freshnessDot(a.seconds_since_activity)} ${formatSeconds(a.seconds_since_activity)}</div></td>
+      </tr>`;
+  }).join('');
+
+  document.getElementById('tableContainer').innerHTML = `
+    <table>
+      <thead><tr><th>Student</th><th>Progress</th><th>Status</th><th>Items Done</th><th>Incidents</th><th>Last Seen</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function startBundlePolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(loadBundleAttempts, 5000);
+}
+
+function renderProgressCell(a) {
+  if (a.status !== 'In Progress') {
+    return `${a.questions_answered ?? 0} answered`;
+  }
+  const answered = a.questions_answered ?? 0;
+  const total    = a.total_questions   ?? '?';
+  const qIndex   = a.current_question_index;
+  return `${answered} / ${total}` + (qIndex ? ` · Q${qIndex}` : '');
+}
+
+function renderLastSeenCell(a) {
+  const cls = freshnessClass(a.seconds_since_activity, a.status);
+  const label = formatSeconds(a.seconds_since_activity);
+  return `<div class="freshness ${cls}">${freshnessDot(a.seconds_since_activity)} ${label}</div>`;
+}
+
+function freshnessClass(seconds, status) {
+  if (status !== 'In Progress') return 'stale-muted';
+  if (seconds === null)         return 'stale-red';
+  if (seconds < 20)             return 'stale-green';
+  if (seconds < 60)             return 'stale-yellow';
+  return 'stale-red';
+}
+
+function renderTable(attempts) {
+  const statsRow = document.getElementById('statsRow');
+  if (attempts.length === 0) {
+    statsRow.style.display = 'none';
+    document.getElementById('tableContainer').innerHTML = `<div class="empty">No attempts yet for this exam.</div>`;
+    return;
+  }
+
+  statsRow.style.display = 'flex';
+  document.getElementById('statTotal').textContent = attempts.length;
+  document.getElementById('statProgress').textContent = attempts.filter(a => a.status === 'In Progress').length;
+  document.getElementById('statSubmitted').textContent = attempts.filter(a => a.status === 'Submitted').length;
+
+  const rows = attempts.map(a => {
+    const fullName = [a.firstname, a.middlename, a.lastname].filter(Boolean).join(' ') || a.student_id;
+    const statusClass = a.status === 'In Progress' ? 'progress' : a.status === 'Submitted' ? 'submitted' : 'cancelled';
+    return `
+      <tr>
+        <td>${escapeHtml(fullName)}</td>
+        <td>${escapeHtml(a.section)}</td>
+               <td><span class="pill ${statusClass}">${escapeHtml(a.status)}</span></td>
+        <td>${renderProgressCell(a)}</td>
+        <td>${renderLastSeenCell(a)}</td>
+      </tr>`;
+  }).join('');
+
+  document.getElementById('tableContainer').innerHTML = `
+    <table>
+      <thead><tr><th>Student</th><th>Section</th><th>Status</th><th>Progress</th>
+<th>Last Seen</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+async function toggleLock(lock) {
+  const body = monitorMode === 'bundle' ? { bundle_code: currentBundleCode } : { exam_code: currentExamCode };
+  if (!currentBundleCode && !currentExamCode) return;
+  await fetch(`${API}/api/broadcast/${lock ? 'lock' : 'unlock'}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  });
+  loadLockStatus();
+}
+
+async function loadLockStatus() {
+  const target = monitorMode === 'bundle' ? currentBundleCode : currentExamCode;
+  if (!target) return;
+  try {
+    const res = await fetch(`${API}/api/broadcast/lock-status/${encodeURIComponent(target)}?scope=${monitorMode}`);
+    const data = await res.json();
+    const pill = document.getElementById('lockStatusPill');
+    pill.textContent = data.locked ? '🔒 LOCKED' : '🔓 UNLOCKED';
+    pill.style.background = data.locked ? 'var(--danger-bg)' : '#ECFDF5';
+    pill.style.color = data.locked ? 'var(--danger)' : 'var(--emerald-dark)';
+  } catch (e) { /* non-critical */ }
+}
+
+async function forceSubmitAll() {
+  const target = monitorMode === 'bundle' ? currentBundleCode : currentExamCode;
+  if (!target) return;
+  if (!confirm('This will immediately submit for every student currently writing. Continue?')) return;
+
+  const btn = document.getElementById('forceSubmitBtn');
+  btn.disabled = true; btn.textContent = '⏳ Sending...';
+  const body = monitorMode === 'bundle' ? { bundle_code: currentBundleCode } : { exam_code: currentExamCode };
+
+  try {
+    await fetch(`${API}/api/broadcast/force-submit`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    btn.textContent = '✓ Sent!';
+    setTimeout(() => { btn.disabled = false; btn.textContent = '⛔ Force Submit All'; }, 2000);
+  } catch (err) {
+    alert('Failed: ' + err.message);
+    btn.disabled = false; btn.textContent = '⛔ Force Submit All';
+  }
+}
+
+async function sendBroadcast() {
+  const message = document.getElementById('broadcastMessage').value.trim();
+  const target = monitorMode === 'bundle' ? currentBundleCode : currentExamCode;
+  if (!message || !target) return;
+  const body = monitorMode === 'bundle' ? { bundle_code: currentBundleCode, message } : { exam_code: currentExamCode, message };
+  await fetch(`${API}/api/broadcast/message`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  });
+  document.getElementById('broadcastMessage').value = '';
+}
+
+async function loadHelpRequests() {
+  const target = monitorMode === 'bundle' ? currentBundleCode : currentExamCode;
+  if (!target) return;
+  try {
+    const res = await fetch(`${API}/api/broadcast/help-requests/${encodeURIComponent(target)}?scope=${monitorMode}`);
+    const requests = await res.json();
+    const box = document.getElementById('helpRequestsBox');
+    if (requests.length === 0) { box.innerHTML = ''; return; }
+    box.innerHTML = requests.map(r => {
+      const name = [r.firstname, r.middlename, r.lastname].filter(Boolean).join(' ') || r.student_id;
+      return `<div style="background:#FFF7ED; border-radius:8px; padding:8px 12px; margin-bottom:6px; font-size:13px; display:flex; justify-content:space-between; align-items:center;">
+        🖐 <strong>${escapeHtml(name)}</strong> needs help
+        <button class="btn btn-ghost" style="padding:4px 10px; font-size:11px;" onclick="resolveHelp(${r.id})">Resolve</button>
+      </div>`;
+    }).join('');
+  } catch (e) { /* non-critical */ }
+}
+
+async function resolveHelp(id) {
+  await fetch(`${API}/api/broadcast/help-requests/${id}/resolve`, { method: 'POST' });
+  loadHelpRequests();
+}
+
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(() => { loadAttempts(); loadHelpRequests(); loadLockStatus(); }, 5000);
+  loadHelpRequests();
+  loadLockStatus();
+}
+
+async function checkAdminSession() {
+  try {
+    const res = await fetch(`${API}/api/auth/admin-me`);
+    const data = await res.json();
+    if (!data.success) { window.location.href = '/admin-login'; return; }
+        document.getElementById('monTabSingle').classList.add('tab-active');
+    loadExamPicker();
+  } catch (err) {
+    window.location.href = '/admin-login';
+  }
+}
+checkAdminSession();
+</script>
+
+<script>
+// Hide the exam-hall controls (and say why) while that feature is switched off.
+fetch('/api/features').then(r => r.json()).then(d => {
+  if (d.features && d.features.hall_control) return;
+  document.querySelectorAll('h4').forEach(h => {
+    if (h.textContent.trim() !== 'Exam Hall Control') return;
+    const panel = h.parentElement;
+    panel.style.display = 'none';
+    const note = document.createElement('div');
+    note.style.cssText = 'background:white;border-radius:12px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:var(--text-muted);box-shadow:0 1px 4px rgba(15,38,71,0.06);';
+    note.innerHTML = 'Live exam-hall control (lock screens, announcements, submit all) is switched off. <a href="/admin-features">Turn it on under Features</a>.';
+    panel.parentElement.insertBefore(note, panel);
+  });
+}).catch(() => {});
+</script>
+
+<script src="/sidebar.js"></script>
+
+<script src="/branding.js"></script>
+ </div>
+</body>
+</html>

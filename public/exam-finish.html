@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Exam Submitted</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+    html, body {
+    height: auto;
+    min-height: 100vh;
+    margin: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .topbar { position: sticky; top: 0; z-index: 10; }
+
+  body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .card {
+    background: white; border-radius: 18px; padding: 44px 40px; max-width: 460px; width: 100%;
+    text-align: center; box-shadow: 0 4px 20px rgba(15,38,71,0.1);
+  }
+  .check-icon {
+    width: 64px; height: 64px; border-radius: 50%; background: var(--emerald);
+    color: white; display: flex; align-items: center; justify-content: center;
+    font-size: 32px; margin: 0 auto 20px;
+  }
+  h1 { font-size: 20px; margin-bottom: 6px; }
+  .exam-name { color: var(--text-muted); font-size: 14px; margin-bottom: 20px; }
+  .score-box { background: var(--bg); border-radius: 10px; padding: 16px; margin-bottom: 20px; font-size: 14px; }
+  .score-box strong { color: var(--navy); font-size: 16px; }
+  .info-box { background: #EFF6FF; color: #1E40AF; border-radius: 10px; padding: 14px 16px; margin-bottom: 20px; font-size: 13px; text-align: left; }
+  .trophy-box { background: #ECFDF5; color: var(--emerald-dark); border-radius: 10px; padding: 14px 16px; margin-bottom: 20px; font-size: 13px; text-align: left; }
+  .actions { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+  .footer-note { font-size: 12px; color: var(--text-muted); margin-top: 28px; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<div class="card" id="card">
+  <div class="check-icon">✓</div>
+  <h1>Loading...</h1>
+</div>
+
+<script>
+const API = window.location.origin;
+const params = new URLSearchParams(window.location.search);
+const examCode = params.get('exam_code');
+const section = params.get('section') === 'B' ? 'B' : 'A';
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+// Prevent back-button navigation back into a submitted exam
+history.pushState(null, null, window.location.href);
+window.addEventListener('popstate', () => {
+  history.pushState(null, null, window.location.href);
+});
+
+async function load() {
+  try {
+    const res = await fetch(`${API}/api/student/exam-finish?exam_code=${encodeURIComponent(examCode)}&section=${section}`);
+    const data = await res.json();
+    if (!data.success) {
+      document.getElementById('card').innerHTML = `<h1>${escapeHtml(data.message)}</h1>`;
+      return;
+    }
+    render(data);
+  } catch (err) {
+    document.getElementById('card').innerHTML = `<h1>Connection failed</h1><p>${escapeHtml(err.message)}</p>`;
+  }
+}
+
+function render(data) {
+  let message;
+  if (data.has_theory) {
+    if (section === 'A' && !data.section_b_completed) {
+      message = 'You have completed Section A (Objective).';
+    } else {
+      message = 'Excellent! You have completed both sections of this exam.';
+    }
+  } else {
+    message = 'Your exam has been submitted successfully.';
+  }
+
+  let scoreHtml = '';
+  if (section === 'A' && !data.error) {
+   // if (data.score_display.score !== undefined) {
+     // scoreHtml = `<div class="score-box">Your Score: <strong>${data.score_display.score} / ${data.score_display.total_marks}</strong></div>`;
+    //} else {
+      scoreHtml = `<div class="score-box">${escapeHtml(data.score_display.text)}</div>`;
+    //}
+  }
+
+  let nextStepsHtml = '';
+  if (data.has_theory && !data.both_sections_completed) {
+    if (section === 'A' && !data.section_b_completed) {
+      nextStepsHtml = `<div class="info-box"><strong>Next Steps</strong><br>Proceed to Section B (Theory) to complete your exam, or safely log out.</div>`;
+    }
+  }
+
+  let trophyHtml = '';
+    if (data.has_theory && data.both_sections_completed) {
+    trophyHtml = `<div class="trophy-box"><strong>🏆 Exam Completed!</strong><br>You have successfully completed both Section A and Section B. Your answers will be reviewed and graded by your teacher.</div>`;
+  }
+
+  const showContinueToB = data.has_theory && section === 'A' && !data.section_b_completed;
+
+  document.getElementById('card').innerHTML = `
+    <div class="check-icon">✓</div>
+    <h1>Submission Received</h1>
+    <div class="exam-name">${escapeHtml(data.exam_title)}</div>
+    <p style="font-size:14px;">${escapeHtml(message)}</p>
+    ${nextStepsHtml}
+    ${trophyHtml}
+    <div class="actions">
+      ${showContinueToB
+        ? `<button class="btn btn-primary" onclick="continueToB()">Continue to Section B</button>`
+        : `<button class="btn btn-primary" onclick="goDashboard()">Go to Dashboard</button>`}
+      <button class="btn btn-ghost" onclick="logout()">Logout Securely</button>
+    </div>
+    <div class="footer-note">
+      Please remain seated until instructed by your invigilator to leave the hall.<br><br>
+  <span>Powered by <strong class="brand">SyncBee</strong> | <strong>Mariobee Technologies Limited</strong></span>
+
+    </div>
+  `;
+}
+
+// function continueToB() {
+//   if (confirm('Continue to Section B? Make sure you are ready before you continue.')) {
+//     window.location.href = `/exam-details?exam_code=${encodeURIComponent(examCode)}`;
+//   }
+// }
+// function goDashboard() {
+//   if (confirm('Return to Dashboard? You can view your results or start another exam.')) {
+//     window.location.href = '/dashboard';
+//   }
+// }
+// async function logout() {
+//   if (confirm('Are you sure you want to log out now?')) {
+//     await fetch(`${API}/api/auth/logout`, { method: 'POST' });
+//     window.location.href = '/login';
+//   }
+// }
+
+function continueToB() {
+  window.location.href = `/exam-details?exam_code=${encodeURIComponent(examCode)}`;
+}
+function goDashboard() {
+  window.location.href = '/dashboard';
+}
+async function logout() {
+  try { await fetch(`${API}/api/auth/logout`, { method: 'POST' }); } catch (e) { /* leave anyway */ }
+  window.location.href = '/login';
+}
+
+load();
+</script>
+
+</body>
+</html>

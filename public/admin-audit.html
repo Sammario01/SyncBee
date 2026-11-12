@@ -1,0 +1,193 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Audit Trail</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+ html, body { margin: 0; height: 100%; }
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;          /* keep the page itself from scrolling */
+}
+.topbar { flex: 0 0 auto; }  /* topbar stays fixed height */
+.content {
+  flex: 1 1 auto;
+  overflow-y: auto;          /* this is what actually scrolls */
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 32px 20px;
+  box-sizing: border-box;
+}
+  .topbar { background: var(--navy); color: white; padding: 16px 32px; display: flex; align-items: center; gap: 16px; }
+  .back-link { color: #B9C6D6; text-decoration: none; font-size: 14px; }
+  .content { max-width: 800px; margin: 32px auto; padding: 0 20px; }
+  .meta-box { background: white; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; font-size: 13px; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  .q-card { background: white; border-radius: 12px; padding: 16px 20px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  .q-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .pill { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+  .pill.answered { background: #ECFDF5; color: var(--emerald-dark); }
+  .pill.unanswered { background: var(--danger-bg); color: var(--danger); }
+  .pill.correct { background: #ECFDF5; color: var(--emerald-dark); margin-left: 6px; }
+  .pill.incorrect { background: var(--danger-bg); color: var(--danger); margin-left: 6px; }
+  .history-toggle { font-size: 12px; color: #1E40AF; cursor: pointer; margin-top: 8px; }
+  .history-list { display: none; margin-top: 10px; font-size: 12px; background: var(--bg); border-radius: 8px; padding: 10px 14px; }
+  .history-list.show { display: block; }
+  .history-row { padding: 5px 0; border-bottom: 1px dashed var(--border); }
+  .history-row:last-child { border-bottom: none; }
+</style>
+</head>
+<body>
+
+<div class="topbar">SyncBee Admin <a href="/admin-results" class="back-link">← Back to Results</a></div>
+
+<div class="content">
+  <div class="meta-box" id="metaBox">Loading...</div>
+  <div id="questionsContainer"></div>
+</div>
+
+<script>
+const API = window.location.origin;
+const params = new URLSearchParams(location.search);
+const attemptId       = params.get('attempt_id');
+const bundleAttemptId = params.get('bundle_attempt_id');
+
+
+
+if (!attemptId && !bundleAttemptId) {
+  document.body.innerHTML =
+    '<div style="padding:40px;font-family:sans-serif;">No attempt_id or bundle_attempt_id provided.</div>';
+  throw new Error('missing id');
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str ?? '';
+  return d.innerHTML;
+}
+
+const reasonLabels = {
+  student_manual:    'Submitted by student',
+  timeout:           'Auto-submitted — time expired',
+  anti_cheat:        'Auto-submitted — anti-cheat violation',
+  admin_force_submit:'Submitted by administrator'
+};
+
+async function fetchJson(url) {
+  const res = await fetch(url);
+  const ct  = res.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    throw new Error('Non-JSON response (are you logged in?)');
+  }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+// ── Shared question-card renderer (used by both single & bundle) ─────
+function questionCardHtml(q, index) {
+  const historyHtml = q.change_history.length > 0
+    ? q.change_history.map(h =>
+        `<div class="history-row">${
+          h.old_value ? `"${escapeHtml(h.old_value)}" → ` : 'First pick: '
+        }"${escapeHtml(h.new_value)}" — ${escapeHtml(h.changed_at)}</div>`
+      ).join('')
+    : '<div class="history-row">No changes recorded.</div>';
+
+  return `
+    <div class="q-card">
+      <div class="q-top">
+        <div>${index + 1}. ${q.question_text}</div>
+        <div>
+          <span class="pill ${q.answered ? 'answered' : 'unanswered'}">
+            ${q.answered ? 'Answered' : 'Not Answered'}
+          </span>
+          ${q.answered
+            ? `<span class="pill ${q.correct ? 'correct' : 'incorrect'}">
+                 ${q.correct ? 'Correct' : 'Incorrect'}
+               </span>`
+            : ''}
+        </div>
+      </div>
+      ${q.answered
+        ? `<div style="font-size:13px; margin-top:8px; color:var(--text-muted);">
+             Final answer: <strong>${escapeHtml(q.final_answer)}</strong>
+           </div>`
+        : ''}
+      <div class="history-toggle"
+           onclick="this.nextElementSibling.classList.toggle('show')">
+        View change history (${q.change_history.length})
+      </div>
+      <div class="history-list">${historyHtml}</div>
+    </div>`;
+}
+
+// ── Single attempt ──────────────────────────────────────────────────
+async function renderSingleAudit() {
+  try {
+    const data = await fetchJson(`${API}/api/results/audit/${encodeURIComponent(attemptId)}`);
+
+    document.getElementById('metaBox').innerHTML =
+      `<strong>Attempt:</strong> ${escapeHtml(data.attempt_id)} &nbsp;·&nbsp;
+       <strong>Submission:</strong> ${
+         reasonLabels[data.submission_reason] || escapeHtml(data.submission_reason)
+       }`;
+
+    document.getElementById('questionsContainer').innerHTML =
+      data.questions.map(questionCardHtml).join('');
+  } catch (err) {
+    document.getElementById('metaBox').textContent = 'Connection failed: ' + err.message;
+  }
+}
+
+// ── Bundle attempt ──────────────────────────────────────────────────
+async function renderBundleAudit() {
+  try {
+    const data = await fetchJson(
+      `${API}/api/results/audit/bundle/${encodeURIComponent(bundleAttemptId)}`
+    );
+
+    document.getElementById('metaBox').innerHTML =
+      `<strong>Bundle:</strong> ${escapeHtml(data.bundle_attempt_id)} &nbsp;·&nbsp;
+       <strong>Student:</strong> ${escapeHtml(data.student_name)} &nbsp;·&nbsp;
+       <strong>${data.sections.length}</strong> exam(s)`;
+
+    const sectionsHtml = data.sections.map(sec => {
+      const header = `
+        <div style="margin-top:28px; padding:10px 16px; background:var(--bg);
+                    border-radius:10px; font-weight:700; font-size:14px;">
+          ${escapeHtml(sec.exam_title)}
+          ${sec.not_attempted
+            ? '<span style="font-weight:400;color:var(--text-muted);"> — not attempted</span>'
+            : `<span style="font-weight:400;color:var(--text-muted);">
+                 — attempt ${escapeHtml(sec.attempt_id)} ·
+                 ${reasonLabels[sec.submission_reason] || escapeHtml(sec.submission_reason || '—')}
+               </span>`}
+        </div>`;
+
+      if (sec.not_attempted || sec.questions.length === 0) {
+        return header + `<div class="empty">No questions recorded.</div>`;
+      }
+
+      return header + sec.questions.map(questionCardHtml).join('');
+    }).join('');
+
+    document.getElementById('questionsContainer').innerHTML = sectionsHtml;
+  } catch (err) {
+    document.getElementById('metaBox').textContent = 'Connection failed: ' + err.message;
+  }
+}
+
+// ── Dispatch ────────────────────────────────────────────────────────
+if (bundleAttemptId) renderBundleAudit();
+else                 renderSingleAudit();
+</script>
+
+</body>
+</html>

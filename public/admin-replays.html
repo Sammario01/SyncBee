@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Replay Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .content { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+  .page-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 8px; flex-wrap: wrap; }
+  .page-head h2 { font-size: 22px; }
+  .sub { color: var(--text-muted); font-size: 13px; margin-bottom: 18px; }
+  select.input { max-width: 320px; }
+  .tab-active { background: var(--navy) !important; color: white !important; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  th, td { text-align: left; padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--border); }
+  th { background: var(--bg); color: var(--text-muted); text-transform: uppercase; font-size: 11px; letter-spacing: .5px; }
+  .empty { text-align: center; color: var(--text-muted); padding: 60px 20px; }
+</style>
+</head>
+<body class="has-sidebar">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+    <div class="content">
+      <div class="page-head">
+        <h2>🎬 Replay Center</h2>
+        <div style="display:flex; gap:10px;">
+          <select class="input" id="examPicker" onchange="loadSingle()"></select>
+          <select class="input" id="bundlePicker" style="display:none;" onchange="loadBundle()"></select>
+        </div>
+      </div>
+      <div class="sub">Replay a submitted exam as a timeline of everything the candidate did.</div>
+      <div style="display:flex; gap:8px; margin-bottom:18px;">
+        <button class="btn btn-ghost tab-active" id="tabSingle" onclick="setMode('single')">Single Exams</button>
+        <button class="btn btn-ghost" id="tabBundle" onclick="setMode('bundle')">Bundles</button>
+      </div>
+      <div id="tableContainer"></div>
+    </div>
+  </div>
+
+<script>
+const API = window.location.origin;
+let mode = 'single';
+
+function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str ?? ''; return d.innerHTML; }
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('tabSingle').classList.toggle('tab-active', m === 'single');
+  document.getElementById('tabBundle').classList.toggle('tab-active', m === 'bundle');
+  document.getElementById('examPicker').style.display = m === 'single' ? 'block' : 'none';
+  document.getElementById('bundlePicker').style.display = m === 'bundle' ? 'block' : 'none';
+  if (m === 'single') loadSinglePicker(); else loadBundlePicker();
+}
+
+async function loadSinglePicker() {
+  const exams = await (await fetch(`${API}/api/results/exams`)).json();
+  const picker = document.getElementById('examPicker');
+  if (!exams.length) { picker.innerHTML = '<option>No submitted exams yet</option>'; document.getElementById('tableContainer').innerHTML = '<div class="empty">No submitted exams to replay yet.</div>'; return; }
+  picker.innerHTML = exams.map(e => `<option value="${escapeHtml(e.exam_code)}">${escapeHtml(e.exam_title)}</option>`).join('');
+  loadSingle();
+}
+
+async function loadSingle() {
+  const code = document.getElementById('examPicker').value;
+  const data = await (await fetch(`${API}/api/results/exam/${encodeURIComponent(code)}`)).json();
+  const rows = (data.results || []).map(r => {
+    const name = [r.firstname, r.middlename, r.lastname].filter(Boolean).join(' ') || r.student_id;
+    return `<tr><td>${escapeHtml(name)}</td><td>${r.score} / ${data.exam.total_marks}</td><td>${escapeHtml((r.finished_at || '').slice(0, 16))}</td>
+      <td><button class="btn btn-primary" style="padding:6px 12px; font-size:12px;" onclick="window.open('/admin-replay?attempt_id=${encodeURIComponent(r.attempt_id)}', '_blank')">▶ Replay</button></td></tr>`;
+  }).join('');
+  document.getElementById('tableContainer').innerHTML = rows
+    ? `<table><thead><tr><th>Student</th><th>Score</th><th>Finished (UTC)</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
+    : '<div class="empty">No submitted attempts for this exam.</div>';
+}
+
+async function loadBundlePicker() {
+  const bundles = await (await fetch(`${API}/api/results/bundles`)).json();
+  const picker = document.getElementById('bundlePicker');
+  if (!bundles.length) { picker.innerHTML = '<option>No submitted bundles yet</option>'; document.getElementById('tableContainer').innerHTML = '<div class="empty">No submitted bundles to replay yet.</div>'; return; }
+  picker.innerHTML = bundles.map(b => `<option value="${escapeHtml(b.bundle_code)}">${escapeHtml(b.bundle_title)}</option>`).join('');
+  loadBundle();
+}
+
+async function loadBundle() {
+  const code = document.getElementById('bundlePicker').value;
+  const data = await (await fetch(`${API}/api/results/bundle/${encodeURIComponent(code)}`)).json();
+  const rows = (data.results || []).map(r =>
+    `<tr><td>${escapeHtml(r.full_name)}</td><td>${r.combined_score} / ${data.bundle.combined_total}</td><td>${escapeHtml((r.finished_at || '').slice(0, 16))}</td>
+      <td><button class="btn btn-primary" style="padding:6px 12px; font-size:12px;" onclick="window.open('/admin-replay?bundle_attempt_id=${encodeURIComponent(r.bundle_attempt_id)}', '_blank')">▶ Replay</button></td></tr>`
+  ).join('');
+  document.getElementById('tableContainer').innerHTML = rows
+    ? `<table><thead><tr><th>Student</th><th>Combined Score</th><th>Finished (UTC)</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
+    : '<div class="empty">No submitted attempts for this bundle.</div>';
+}
+
+async function checkAdminSession() {
+  try {
+    const body = await (await fetch(`${API}/api/auth/admin-me`)).json();
+    if (!body.success) { window.location.href = '/admin-login'; return; }
+    loadSinglePicker();
+  } catch (err) {
+    window.location.href = '/admin-login';
+  }
+}
+checkAdminSession();
+</script>
+<script src="/sidebar.js"></script>
+<script src="/branding.js"></script>
+</body>
+</html>

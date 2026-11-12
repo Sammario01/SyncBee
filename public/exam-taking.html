@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Exam</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+   <script src="/replay-logger.js"></script>
+<style>
+    html, body {
+    height: auto;
+    min-height: 100vh;
+    margin: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .topbar { position: sticky; top: 0; z-index: 10; }
+  body { user-select: none; -webkit-user-select: none; }
+  .exam-header {
+    background: var(--navy); color: white; padding: 14px 28px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .exam-header .title { font-size: 15px; font-weight: 600; }
+  .exam-header .title small { display: block; color: #B9C6D6; font-weight: 400; font-size: 12px; margin-top: 2px; }
+  .timer {
+    background: rgba(255,255,255,0.12); padding: 8px 16px; border-radius: 8px;
+    font-family: 'Poppins', monospace; font-weight: 700; font-size: 18px; letter-spacing: 1px;
+  }
+  .timer.low { background: var(--danger); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
+
+  .layout { display: grid; grid-template-columns: 1fr 260px; gap: 0; min-height: calc(100vh - 60px); }
+  .main-panel { padding: 32px 40px; }
+  .side-panel { background: white; border-left: 1px solid var(--border); padding: 24px 20px; }
+
+  .q-counter { font-size: 13px; color: var(--text-muted); font-weight: 600; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .passage-box { background: var(--bg); border-left: 4px solid var(--navy); border-radius: 8px; padding: 16px 18px; margin-bottom: 20px; }
+  .passage-box h4 { font-size: 14px; margin-bottom: 8px; }
+  .passage-box p { font-size: 14px; white-space: pre-wrap; color: var(--text); line-height: 1.6; }
+
+  .question-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 24px; }
+
+  .option {
+    display: flex; align-items: center; gap: 14px;
+    background: white; border: 1.5px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 12px; cursor: pointer; font-size: 15px;
+    transition: border-color 0.1s ease, background 0.1s ease;
+  }
+  .option:hover { border-color: var(--orange); }
+  .option.selected { border-color: var(--orange); background: #FFF7ED; }
+  .option .letter {
+    width: 28px; height: 28px; border-radius: 50%; background: var(--navy); color: white;
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0;
+  }
+  .option.selected .letter { background: var(--orange); }
+
+  .nav-row { display: flex; justify-content: space-between; margin-top: 32px; }
+
+  .side-panel h4 { font-size: 13px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 14px; letter-spacing: 0.5px; }
+  .q-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 24px; }
+  .q-btn {
+    aspect-ratio: 1; border: none; border-radius: 8px; font-weight: 700; font-size: 13px;
+    cursor: pointer; color: white; background: var(--danger);
+  }
+  .q-btn.answered { background: var(--emerald); }
+  .q-btn.current { outline: 3px solid var(--orange); outline-offset: 2px; }
+
+  .legend { font-size: 12px; color: var(--text-muted); display: flex; flex-direction: column; gap: 6px; margin-bottom: 24px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  .loading-overlay {
+    position: fixed; inset: 0; background: rgba(15,38,71,0.85); color: white;
+    display: none; align-items: center; justify-content: center; flex-direction: column; gap: 12px;
+    font-size: 15px; z-index: 999; text-align: center;
+  }
+  .loading-overlay.show { display: flex; }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 998; }
+  .modal-backdrop.show { display: flex; }
+  .modal-box { background: white; border-radius: 14px; padding: 28px; max-width: 380px; text-align: center; }
+  .modal-box h3 { font-size: 17px; margin-bottom: 8px; }
+  .modal-box p { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 10px; }
+  .modal-actions button { flex: 1; }
+    .theory-instructions { background: var(--bg); border-left: 4px solid var(--orange); border-radius: 8px; padding: 12px 16px; font-size: 13px; margin-bottom: 16px; }
+  .theory-textarea { width: 100%; min-height: 260px; border: 1.5px solid var(--border); border-radius: 10px; padding: 14px 16px; font-size: 15px; font-family: inherit; resize: vertical; }
+  .theory-textarea:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px rgba(245,148,31,0.15); }
+  .theory-meta { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+  .paper-mode-box { background: #FFF7ED; border-radius: 10px; padding: 20px; font-size: 14px; color: var(--orange-dark); text-align: center; }
+
+    .lock-overlay {
+    position: fixed; inset: 0; background: rgba(15,38,71,0.92); color: white;
+    display: none; align-items: center; justify-content: center; flex-direction: column; gap: 14px;
+    z-index: 2000; text-align: center;
+  }
+  .lock-overlay.show { display: flex; }
+  .lock-overlay h2 { font-size: 20px; }
+
+  .broadcast-toast {
+    position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+    background: var(--navy); color: white; padding: 14px 24px; border-radius: 10px;
+    font-size: 14px; font-weight: 600; z-index: 1500; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    display: none; max-width: 500px; text-align: center;
+  }
+  .broadcast-toast.show { display: block; animation: slideDown 0.3s ease; }
+  @keyframes slideDown { from { transform: translateX(-50%) translateY(-20px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
+
+  .help-btn {
+    position: fixed; bottom: 24px; right: 24px; background: var(--orange); color: white;
+    border: none; border-radius: 50px; padding: 12px 20px; font-size: 13px; font-weight: 700;
+    cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 500;
+  }
+  .help-btn:disabled { background: var(--text-muted); cursor: not-allowed; }
+    .fullscreen-gate {
+    position: fixed; inset: 0; background: var(--navy); color: white;
+    display: none; align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+    z-index: 3000; text-align: center; padding: 20px;
+  }
+  .fullscreen-gate.show { display: flex; }
+  .fullscreen-gate h2 { font-size: 20px; }
+  .fullscreen-gate p { color: #B9C6D6; font-size: 14px; max-width: 400px; }
+    .switcher-bar {
+    display: flex; gap: 8px; padding: 12px 24px; background: white; border-bottom: 1px solid var(--border);
+    overflow-x: auto; display: none;
+  }
+  .switcher-bar.show { display: flex; }
+  .switcher-tab {
+    padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+    white-space: nowrap; border: 1.5px solid var(--border); background: white; color: var(--text);
+  }
+  .switcher-tab.current { border-color: var(--orange); background: #FFF7ED; }
+  .switcher-tab.submitted { background: #ECFDF5; border-color: var(--emerald); color: var(--emerald-dark); }
+  .finish-bundle-btn { margin-left: auto; flex-shrink: 0; }
+    .admin-submit-notice {
+    position: fixed; inset: 0; background: rgba(15,38,71,0.95); color: white;
+    display: none; align-items: center; justify-content: center; flex-direction: column; gap: 10px;
+    z-index: 4000; text-align: center;
+  }
+  .admin-submit-notice.show { display: flex; }
+  .admin-submit-notice .count { font-size: 48px; font-weight: 700; font-family: 'Poppins', sans-serif; }
+  .help-btn { display: none; }
+  .q-image { display: block; margin: 12px 0; max-width: 100%; border-radius: 8px; }
+.opt-image { display: block; margin: 8px 0 0; max-width: 100%; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div class="admin-submit-notice" id="adminSubmitNotice">
+  <h2>Your administrator is submitting this exam</h2>
+  <div class="count" id="adminSubmitCountdown">5</div>
+  <p style="color:#B9C6D6;">You will be moved to the finish page automatically.</p>
+</div>
+  <div class="fullscreen-gate" id="fullscreenGate">
+  <div style="font-size:40px;">🖥️</div>
+  <h2>This exam requires fullscreen mode</h2>
+  <p>Leaving fullscreen during the exam will be logged as a strike. Click below to begin.</p>
+  <button class="btn btn-primary" onclick="enterFullscreenAndStart()">Enter Fullscreen & Begin Exam</button>
+</div>
+<div class="lock-overlay" id="lockOverlay">
+  <div style="font-size:40px;">🔒</div>
+  <h2>Your screen has been locked by the administrator</h2>
+  <p style="color:#B9C6D6; font-size:14px;">Please wait — your exam will resume shortly.</p>
+</div>
+<div class="broadcast-toast" id="broadcastToast"></div>
+<button class="help-btn" id="helpBtn" onclick="raiseHand()">🖐 Need Help?</button>
+<div class="exam-header">
+  <div class="title">
+    Section <span id="sectionLabel"></span> — <span id="examTitle">Loading...</span>
+    <small id="examDesc"></small>
+  </div>
+  <div class="timer" id="timer">--:--:--</div>
+</div>
+<div class="switcher-bar" id="switcherBar"></div>
+
+<div class="layout">
+  <div class="main-panel">
+    <div class="q-counter" id="qCounter">Question 1</div>
+    <div id="passageBox"></div>
+    <div class="question-text" id="questionText"></div>
+    <div id="optionsBox"></div>
+
+    <div class="nav-row">
+      <button class="btn btn-ghost" id="prevBtn" onclick="goToPage(currentPage - 1)">← Previous</button>
+      <button class="btn btn-primary" id="nextBtn" onclick="goToPage(currentPage + 1)">Next →</button>
+    </div>
+  </div>
+
+  <div class="side-panel">
+    <h4>Questions</h4>
+    <div class="q-grid" id="qGrid"></div>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--emerald)"></span> Answered</span>
+      <span><span class="dot" style="background:var(--danger)"></span> Not answered</span>
+    </div>
+        <button class="btn btn-primary" style="width:100%" onclick="confirmSubmit()" id="singleSubmitBtn">Submit Exam</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div style="width:36px;height:36px;border:4px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+  <div id="loadingText">Submitting your answers...</div>
+</div>
+
+<div class="modal-backdrop" id="submitModal">
+  <div class="modal-box">
+    <h3>Submit exam?</h3>
+    <p>You won't be able to change your answers after this.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="doSubmit()">Yes, Submit</button>
+    </div>
+  </div>
+</div>
+
+<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+
+<script>
+const API = window.location.origin;
+const params = new URLSearchParams(window.location.search);
+const ATTEMPT_ID = params.get('attempt_id');
+const SECTION = params.get('section') === 'B' ? 'B' : 'A';
+const BUNDLE_ATTEMPT_ID = params.get('bundle_attempt_id'); // null for standalone exams
+
+let examData = null;
+let currentPage = 1;
+let selectedAnswers = {};
+let timerInterval = null;
+let tabSwitchCount = 0;
+
+let autosaveDebounceTimer = null;
+let autosaveIntervalTimer = null;
+
+function getLastSeenBroadcastId() {
+  try { return parseInt(localStorage.getItem(`syncbee_lastbroadcast_${BUNDLE_ATTEMPT_ID || ATTEMPT_ID}`), 10) || 0; }
+  catch (e) { return 0; }
+}
+function setLastSeenBroadcastId(id) {
+  try { localStorage.setItem(`syncbee_lastbroadcast_${BUNDLE_ATTEMPT_ID || ATTEMPT_ID}`, id); } catch (e) {}
+}
+let isLocked = false;
+let broadcastPollTimer = null;
+let pendingExamStart = false;
+
+let leavingIntentionally = false;
+function goTo(url) {
+       if (window.ReplayLogger) ReplayLogger.beforeNavigate();
+  leavingIntentionally = true;
+  window.location.href = url;
+}
+
+function renderImage(img, cls) {
+  if (!img || !img.url) return '';
+  const w = Math.min(100, Math.max(10, +img.width_pct || 60));
+  const a = img.align || 'center';
+  const ml = (a === 'center' || a === 'right') ? 'auto' : '0';
+  const mr = (a === 'center' || a === 'left') ? 'auto' : '0';
+  return `<img src="${escapeHtml(img.url)}" class="${cls || 'q-image'}" alt=""
+    style="width:${w}%; margin-left:${ml}; margin-right:${mr}; display:block; max-width:100%; border-radius:8px;">`;
+}
+
+let currentBundleItemOrder = parseInt(params.get('item_order'), 10) || 1;
+let totalBundleItems = parseInt(params.get('total_items'), 10) || null;
+const NAV_MODE = params.get('nav_mode') || 'strict_sequential';
+
+const storageKeyAnswers = `syncbee_${ATTEMPT_ID}_answers`;
+// Bundle mode: timer key is scoped to the BUNDLE, not the individual exam, so the
+// countdown survives the transition from one item to the next without resetting.
+const storageKeyTimer = BUNDLE_ATTEMPT_ID ? `syncbee_bundle_${BUNDLE_ATTEMPT_ID}_timer` : `syncbee_${ATTEMPT_ID}_timer`;
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+async function loadExam() {
+  if (!ATTEMPT_ID) {
+    alert('No attempt specified.');
+    window.location.href = '/dashboard';
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/attempts/${encodeURIComponent(ATTEMPT_ID)}/load-exam?section=${SECTION}`);
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || 'Could not load exam.');
+      window.location.href = '/dashboard';
+      return;
+    }
+
+         examData = data;
+         applyFeatures(data.features);
+    if (BUNDLE_ATTEMPT_ID) {
+      try {
+        const bundleRes = await fetch(`${API}/api/bundle-attempts/${encodeURIComponent(BUNDLE_ATTEMPT_ID)}/items`);
+        // bundle_code isn't directly in that response, so fetch it via the bundle attempt record instead:
+      } catch (e) {}
+      // Simplest reliable source: bundle_code travels in the URL from bundle-details.html already.
+      examData.bundle_code_for_broadcast = params.get('bundle_code');
+    }
+       if (BUNDLE_ATTEMPT_ID) {
+      document.getElementById('sectionLabel').textContent = `Bundle Item ${currentBundleItemOrder || 1}/${totalBundleItems || '?'}`;
+      document.getElementById('examTitle').textContent = data.exam.exam_title;
+           if (NAV_MODE === 'free') {
+        document.getElementById('switcherBar').classList.add('show');
+        document.getElementById('singleSubmitBtn').style.display = 'none'; // one button only — Submit All Exams in the tab bar
+        loadSwitcherTabs();
+      }
+    } else {
+      document.getElementById('sectionLabel').textContent = SECTION;
+      document.getElementById('examTitle').textContent = data.exam.exam_title;
+    }
+    document.getElementById('examDesc').textContent = data.exam.description || '';
+
+      try {
+      const saved = localStorage.getItem(storageKeyAnswers);
+      if (saved) selectedAnswers = JSON.parse(saved);
+    } catch (e) { selectedAnswers = {}; }
+
+    // Merge in server-saved drafts for anything NOT already present locally —
+    // this is the real crash/power-loss recovery: even on a fresh browser
+    // profile with no localStorage at all, answers come back from the database.
+    data.questions.forEach(q => {
+      if (q.saved_answer !== null && q.saved_answer !== undefined && !(q.question_id in selectedAnswers)) {
+        selectedAnswers[q.question_id] = q.saved_answer;
+      }
+    });
+    try { localStorage.setItem(storageKeyAnswers, JSON.stringify(selectedAnswers)); } catch (e) {}
+
+    startAutosaveInterval();
+
+       if (data.exam.anti_cheat_enabled == 1 && !document.fullscreenElement) {
+      document.getElementById('fullscreenGate').classList.add('show');
+      pendingExamStart = true;
+    } else {
+      renderQuestion(1);
+      renderQuestionGrid();
+    }
+            if (BUNDLE_ATTEMPT_ID) {
+      // Always ask the server for the TRUE current value — never trust the
+      // URL param alone, since it goes stale the moment time passes after
+      // the page first loads (that staleness was the actual bug).
+      try {
+        const timerRes = await fetch(`${API}/api/bundle-attempts/${encodeURIComponent(BUNDLE_ATTEMPT_ID)}/timer`);
+        const timerData = await timerRes.json();
+        resumeTimerFrom(timerData.remaining_seconds);
+      } catch (e) {
+        const fallback = parseInt(params.get('remaining_seconds'), 10);
+        resumeTimerFrom(isNaN(fallback) ? 0 : fallback);
+      }
+      startBundleHeartbeat();
+    } else {
+      const timerMinutes = SECTION === 'B' ? (data.exam.theory_duration || data.exam.duration_minutes) : data.exam.duration_minutes;
+      startTimer(timerMinutes);
+    }
+    document.addEventListener('keydown', handleKeys);
+    startHeartbeat();
+
+          if (data.exam.anti_cheat_enabled == 1) {
+      setupAntiCheat();
+      setupFullscreenMonitoring();
+    }
+    startBroadcastPolling();
+  } catch (err) {
+    alert('Failed to load exam: ' + err.message);
+  }
+}
+
+function enterFullscreenAndStart() {
+  const elem = document.documentElement;
+  const request = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen;
+
+  if (request) {
+    request.call(elem).catch(() => { /* user may deny — exam still proceeds, just unlocked */ });
+  }
+
+  document.getElementById('fullscreenGate').classList.remove('show');
+  if (pendingExamStart) {
+    renderQuestion(1);
+    renderQuestionGrid();
+    pendingExamStart = false;
+  }
+}
+
+function scheduleAutosave() {
+  clearTimeout(autosaveDebounceTimer);
+  autosaveDebounceTimer = setTimeout(doAutosave, 2000); // 2s after the student stops typing/clicking
+}
+
+async function doAutosave() {
+  if (!examData) return;
+  try {
+    await fetch(`${API}/api/attempts/${encodeURIComponent(ATTEMPT_ID)}/autosave`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        exam_code: examData.exam.exam_code, section: SECTION, answers: selectedAnswers,
+        answer_mode: examData.questions[0] ? examData.questions[0].answer_mode : undefined
+      })
+    });
+  } catch (e) { /* silent — localStorage still has it, will retry on next trigger */ }
+}
+
+function startAutosaveInterval() {
+  autosaveIntervalTimer = setInterval(doAutosave, 15000); // safety net even with no new input
+}
+
+function startBundleHeartbeat() {
+  setInterval(pushTimerNow, 3000); // every 3s — minimizes the staleness window on refresh
+}
+
+async function pushTimerNow() {
+  if (!BUNDLE_ATTEMPT_ID) return;
+  try {
+    await fetch(`${API}/api/bundle-attempts/${encodeURIComponent(BUNDLE_ATTEMPT_ID)}/heartbeat`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ remaining_seconds: remainingSeconds })
+    });
+  } catch (e) { /* non-critical, next tick retries */ }
+}
+
+function setupFullscreenMonitoring() {
+  document.addEventListener('fullscreenchange', () => {
+    if (pendingExamStart) return;
+    
+    // If we are navigating to the next exam or submitting, ignore fullscreen exit
+    if (leavingIntentionally) { 
+        return; 
+    }
+
+    if (!document.fullscreenElement) {
+      tabSwitchCount++;
+      // ...
+      fetch(`${API}/api/attempts/${encodeURIComponent(ATTEMPT_ID)}/incidents`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ incident_type: 'fullscreen_exit', details: `Strike ${tabSwitchCount}` })
+      }).catch(() => {});
+
+      if (tabSwitchCount >= 3) {
+        alert('You have exceeded the allowed exits from fullscreen. Your exam is being submitted.');
+        doSubmit('anti_cheat')
+      } else {
+        alert(`Strike ${tabSwitchCount}: You exited fullscreen. After 3 strikes, your exam will submit automatically. Click OK to re-enter fullscreen.`);
+        enterFullscreenAndStart();
+      }
+    }
+  });
+
+  // Disable right-click during the exam — small, standard exam-security touch
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  // Warn hard before any navigation/close attempt
+   window.addEventListener('beforeunload', (e) => {
+    if (leavingIntentionally) return; // our own planned navigation — no warning needed
+    e.preventDefault();
+    e.returnValue = '';
+  });
+}
+
+
+function renderQuestion(page) {
+  const q = examData.questions[page - 1];
+  if (!q) return;
+  currentPage = page;
+       if (window.ReplayLogger) ReplayLogger.questionOpened(q.question_id);
+
+  document.getElementById('qCounter').textContent = `Question ${page} of ${examData.questions.length}`;
+
+  const passageBox = document.getElementById('passageBox');
+  if (q.passage && q.passage.passage_text) {
+    passageBox.innerHTML = `
+      <div class="passage-box">
+        ${q.passage.title ? `<h4>${q.passage.title}</h4>` : ''}
+        <p>${q.passage.passage_text}</p>
+      </div>`;
+  } else {
+    passageBox.innerHTML = '';
+  }
+
+  const qImg = q.question_image || (q.image_url ? {
+  url: q.image_url, width_pct: q.image_width_pct, align: q.image_align
+} : null);
+document.getElementById('questionText').innerHTML = q.question_text + renderImage(qImg);
+
+  const optionsBox = document.getElementById('optionsBox');
+
+  if (q.question_type === 'THEORY') {
+    renderTheoryAnswer(q, optionsBox);
+  } else {
+    renderMcqOptions(q, optionsBox);
+  }
+
+  document.getElementById('prevBtn').style.visibility = page > 1 ? 'visible' : 'hidden';
+  document.getElementById('nextBtn').style.visibility = page < examData.questions.length ? 'visible' : 'hidden';
+}
+
+function renderMcqOptions(q, container) {
+  const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+  container.innerHTML = '';
+  q.options.forEach((opt, i) => {
+    const isSelected = selectedAnswers[q.question_id] === opt.id;
+    const div = document.createElement('div');
+    div.className = `option${isSelected ? ' selected' : ''}`;
+   const optImg = opt.image || (opt.image_url ? {
+  url: opt.image_url, width_pct: opt.image_width_pct, align: opt.image_align
+} : null);
+div.innerHTML = `
+  <span class="letter">${letters[i]}</span>
+  <span style="flex:1;">
+    <span>${opt.option_text}</span>
+    ${renderImage(optImg, 'opt-image')}
+  </span>`;
+    div.onclick = () => selectAnswer(q.question_id, opt.id);
+    container.appendChild(div);
+  });
+}
+
+function renderTheoryAnswer(q, container) {
+  const instructionsHtml = q.student_instructions
+    ? `<div class="theory-instructions">${q.student_instructions}</div>` : '';
+  const timeNote = q.time_limit_minutes
+    ? `<div class="theory-meta">Suggested time for this question: ${q.time_limit_minutes} min</div>` : '';
+
+  if (q.answer_mode === 'screen_to_paper') {
+    container.innerHTML = `
+      ${instructionsHtml}
+      <div class="paper-mode-box">
+        ✎ Write your answer for this question on the paper provided by your invigilator.
+        No typing is required here — just move to the next question when you're ready.
+      </div>
+      ${timeNote}`;
+    return;
+  }
+
+  // screen_to_screen
+  const currentText = selectedAnswers[q.question_id] || '';
+  const wordCount = countWords(currentText);
+  const maxWordsNote = q.max_words ? ` / ${q.max_words} max` : '';
+
+  container.innerHTML = `
+    ${instructionsHtml}
+    <textarea class="theory-textarea" id="theoryInput" placeholder="Type your answer here...">${currentText}</textarea>
+    <div class="theory-meta"><span id="wordCountLabel">${wordCount} word(s)${maxWordsNote}</span></div>
+    ${timeNote}`;
+
+  const textarea = document.getElementById('theoryInput');
+  textarea.addEventListener('input', () => {
+           if (window.ReplayLogger) ReplayLogger.theoryTyped(q.question_id, selectedAnswers[q.question_id], textarea.value);
+       selectedAnswers[q.question_id] = textarea.value;
+    try { localStorage.setItem(storageKeyAnswers, JSON.stringify(selectedAnswers)); } catch (e) {}
+    document.getElementById('wordCountLabel').textContent = `${countWords(textarea.value)} word(s)${maxWordsNote}`;
+    renderQuestionGrid();
+    scheduleAutosave();
+  });
+}
+
+function countWords(text) {
+  const clean = (text || '').trim();
+  if (!clean) return 0;
+  const matches = clean.match(/[A-Za-z]+(?:['-][A-Za-z]+)*/g);
+  return matches ? matches.length : 0;
+}
+
+
+
+   function selectAnswer(questionId, optionId) {
+     const previous = selectedAnswers[questionId];
+     if (window.ReplayLogger) ReplayLogger.answerChanged(questionId, previous, optionId);
+     selectedAnswers[questionId] = optionId;
+     try { localStorage.setItem(storageKeyAnswers, JSON.stringify(selectedAnswers)); } catch (e) {}
+     renderQuestion(currentPage);
+     renderQuestionGrid();
+     scheduleAutosave();
+   }
+
+function showForceSubmitCountdown() {
+       if (window.ReplayLogger) ReplayLogger.log('force_submit_notice');
+  const overlay = document.getElementById('adminSubmitNotice');
+  const countEl = document.getElementById('adminSubmitCountdown');
+  overlay.classList.add('show');
+  let seconds = 5;
+  countEl.textContent = seconds;
+  const interval = setInterval(() => {
+    seconds--;
+    countEl.textContent = seconds;
+    if (seconds <= 0) {
+      clearInterval(interval);
+      doSubmit('admin_force_submit');
+    }
+  }, 1000);
+}
+
+function renderQuestionGrid() {
+  const grid = document.getElementById('qGrid');
+  grid.innerHTML = '';
+  examData.questions.forEach((q, i) => {
+    const btn = document.createElement('button');
+    const isPaperMode = q.question_type === 'THEORY' && q.answer_mode === 'screen_to_paper';
+    const answered = isPaperMode ? true : !!(selectedAnswers[q.question_id] && selectedAnswers[q.question_id].trim());
+    btn.className = `q-btn${answered ? ' answered' : ''}${i + 1 === currentPage ? ' current' : ''}`;
+    btn.textContent = i + 1;
+    btn.onclick = () => goToPage(i + 1);
+    grid.appendChild(btn);
+  });
+}
+
+function goToPage(page) {
+  if (page < 1 || page > examData.questions.length) return;
+  renderQuestion(page);
+  renderQuestionGrid();
+}
+
+function handleKeys(e) {
+  // Theory answers need normal typing (including letters A-F) — only apply
+  // MCQ letter-shortcuts and Enter-to-submit when NOT focused in a textarea.
+  const typing = document.activeElement && document.activeElement.tagName === 'TEXTAREA';
+
+  if (!typing) {
+    const key = e.key.toUpperCase();
+    const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+    const q = examData.questions[currentPage - 1];
+
+    if (q.question_type !== 'THEORY' && letters.includes(key)) {
+      const idx = letters.indexOf(key);
+      if (q.options[idx]) selectAnswer(q.question_id, q.options[idx].id);
+      return;
+    }
+    if (key === 'ENTER' || key === 'S') { e.preventDefault(); confirmSubmit(); return; }
+  }
+
+  if (e.key === 'ArrowRight' && !typing) { e.preventDefault(); goToPage(currentPage + 1); return; }
+  if (e.key === 'ArrowLeft' && !typing) { e.preventDefault(); goToPage(currentPage - 1); return; }
+}
+
+let remainingSeconds = 0;
+
+function startTimer(durationMinutes) {
+  let remaining;
+  try {
+    const saved = localStorage.getItem(storageKeyTimer);
+    remaining = saved ? parseInt(saved, 10) : durationMinutes * 60;
+  } catch (e) {
+    remaining = durationMinutes * 60;
+  }
+  resumeTimerFrom(remaining);
+}
+
+function resumeTimerFrom(remaining) {
+  remainingSeconds = remaining;
+
+  function render() {
+    const h = String(Math.floor(remainingSeconds / 3600)).padStart(2, '0');
+    const m = String(Math.floor((remainingSeconds % 3600) / 60)).padStart(2, '0');
+    const s = String(remainingSeconds % 60).padStart(2, '0');
+    const el = document.getElementById('timer');
+    el.textContent = `${h}:${m}:${s}`;
+    el.classList.toggle('low', remainingSeconds <= 60);
+  }
+
+    render();
+  timerInterval = setInterval(() => {
+    if (remainingSeconds <= 1) {
+      remainingSeconds = 0;
+      try { localStorage.setItem(storageKeyTimer, 0); } catch (e) {}
+      render();
+      clearInterval(timerInterval);
+      alert('Time is up! Submitting your answers now.');
+      doSubmit('timeout')
+      return;
+    }
+    remainingSeconds--;
+    try { localStorage.setItem(storageKeyTimer, remainingSeconds); } catch (e) {}
+    render();
+  }, 1000);
+}
+
+function startHeartbeat() {
+  setInterval(() => {
+    const answeredCount = Object.keys(selectedAnswers).length;
+    fetch(`${API}/api/attempts/${encodeURIComponent(ATTEMPT_ID)}/heartbeat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        answered: answeredCount,
+        current_question: currentPage
+      })
+    }).catch(() => {});
+  }, 10000);
+}
+
+async function loadSwitcherTabs() {
+  try {
+    const res = await fetch(`${API}/api/bundle-attempts/${encodeURIComponent(BUNDLE_ATTEMPT_ID)}/items`);
+    const data = await res.json();
+
+    const tabsHtml = data.items.map(item => `
+      <button class="switcher-tab ${item.exam_code === examData.exam.exam_code ? 'current' : ''}"
+        onclick="switchToItem(${item.item_order})">
+        ${item.item_order}. ${item.exam_title}
+      </button>`).join('');
+
+    const submitAllBtn = `<button class="btn btn-primary finish-bundle-btn" onclick="submitAllExams()">Submit All Exams</button>`;
+    document.getElementById('switcherBar').innerHTML = tabsHtml + submitAllBtn;
+  } catch (e) { /* non-critical */ }
+}
+
+async function submitAllExams(reason = 'student_manual') {
+  if (reason === 'student_manual' && !confirm('Submit all exams now? This cannot be undone.')) return;
+  await doAutosave();
+  await fetch(`${API}/api/bundle-attempts/${encodeURIComponent(BUNDLE_ATTEMPT_ID)}/submit-all`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ submission_reason: reason })
+  });
+  try { localStorage.removeItem(storageKeyTimer); } catch (e) {}
+  // window.location.href = `/bundle-finish?bundle_attempt_id=${encodeURIComponent(BUNDLE_ATTEMPT_ID)}`;
+            goTo(`/exam-finish?exam_code=${encodeURIComponent(examData.exam.exam_code)}&section=${SECTION}`);
+
+}
+
+async function switchToItem(itemOrder) {
+  if (itemOrder === currentBundleItemOrder) return;
+  await doAutosave(); // make sure the latest keystrokes are saved before leaving this exam
+
+  try {
+    const res = await fetch(`${API}/api/bundle-attempts/${encodeURIComponent(BUNDLE_ATTEMPT_ID)}/switch-item`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_order: itemOrder })
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error); return; }
+
+      const url = `/exam-taking?attempt_id=${encodeURIComponent(data.attempt_id)}&section=A` +
+      `&bundle_attempt_id=${encodeURIComponent(BUNDLE_ATTEMPT_ID)}` +
+      `&bundle_code=${encodeURIComponent(params.get('bundle_code'))}` +
+      `&item_order=${data.current_item_order}&total_items=${totalBundleItems}` +
+      `&remaining_seconds=${data.remaining_seconds}&nav_mode=free`;
+    // window.location.href = url;
+    goTo(url)
+  } catch (err) {
+    alert('Connection failed: ' + err.message);
+  }
+}
+
+
+let FEATURES = { hand_raise: false, hall_control: false, replay_recording: false };
+let featureWatchStarted = false;
+
+function applyFeatures(f) {
+  if (!f) return;
+  FEATURES = f;
+  const helpBtn = document.getElementById('helpBtn');
+  if (helpBtn) helpBtn.style.display = f.hand_raise ? 'block' : 'none';
+  if (f.replay_recording && window.ReplayLogger) ReplayLogger.init(ATTEMPT_ID);
+  if (f.hall_control) startBroadcastPolling();
+  if (!featureWatchStarted) {
+    featureWatchStarted = true;
+    setInterval(async () => {
+      try {
+        const res = await fetch(`${API}/api/student/features`);
+        if (res.ok) applyFeatures((await res.json()).features);
+      } catch (e) { /* try again next time */ }
+    }, 15000);
+  }
+}
+
+function startBroadcastPolling() {
+  if (broadcastPollTimer || !FEATURES.hall_control) return;
+
+  broadcastPollTimer = setInterval(async () => {
+    try {
+        const scopeCode = BUNDLE_ATTEMPT_ID ? examData.bundle_code_for_broadcast : examData.exam.exam_code;
+      const scopeParam = BUNDLE_ATTEMPT_ID ? 'bundle' : 'exam';
+      const res = await fetch(`${API}/api/broadcast/status/${encodeURIComponent(scopeCode)}?scope=${scopeParam}&since_id=${getLastSeenBroadcastId()}`);
+      const data = await res.json();
+
+      applyLockState(data.locked);
+
+      data.events.forEach(ev => {
+        setLastSeenBroadcastId(ev.id); // mark seen regardless of type, so it never replays
+        if (ev.type === 'message') showBroadcastToast(ev.message);
+        if (ev.type === 'force_submit') {
+          clearInterval(broadcastPollTimer);
+          showForceSubmitCountdown();
+        }
+      });
+    } catch (e) { /* non-critical, retry next tick */ }
+  }, 3000);
+}
+
+function applyLockState(locked) {
+  if (locked === isLocked) return;
+  isLocked = locked;
+       if (window.ReplayLogger) ReplayLogger.log(locked ? 'screen_locked' : 'screen_unlocked');
+  document.getElementById('lockOverlay').classList.toggle('show', locked);
+  if (locked) {
+    clearInterval(timerInterval);
+  } else {
+    // Resume the visible timer from wherever it left off
+    const saved = localStorage.getItem(storageKeyTimer);
+    const remaining = saved ? parseInt(saved, 10) : 0;
+    resumeTimerFrom(remaining);
+  }
+}
+
+function showBroadcastToast(message) {
+       if (window.ReplayLogger) ReplayLogger.log('admin_message', { message: String(message).slice(0, 500) });
+  const toast = document.getElementById('broadcastToast');
+  toast.textContent = `📢 ${message}`;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 8000);
+}
+
+
+
+// ---- "Need Help?" button: comes back once the administrator has resolved the request ----
+const HELP_POLL_MS = 4000;
+const HELP_GRACE_MS = 4000;   // a "no request" answer right after asking may just be the request still arriving
+let helpRaisedAt = 0;
+
+function showHelpButton(waiting) {
+  const btn = document.getElementById('helpBtn');
+  if (!btn) return;
+  btn.disabled = waiting;
+  btn.textContent = waiting ? '🖐 Help requested…' : '🖐 Need Help?';
+}
+
+async function raiseHand() {
+  const btn = document.getElementById('helpBtn');
+  if (!btn || btn.disabled) return;
+  helpRaisedAt = Date.now();
+  showHelpButton(true);
+  try {
+    const res = await fetch(`${API}/api/broadcast/help`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        attempt_id: ATTEMPT_ID,
+        exam_code: BUNDLE_ATTEMPT_ID ? null : examData.exam.exam_code,
+        bundle_code: BUNDLE_ATTEMPT_ID ? examData.bundle_code_for_broadcast : null
+      })
+    });
+    const data = await res.json();
+    if (!res.ok || data.success === false) showHelpButton(false);
+  } catch (e) {
+    showHelpButton(false);
+  }
+}
+
+setInterval(async () => {
+  if (!FEATURES.hand_raise || !examData) return;
+  try {
+    const res = await fetch(`${API}/api/broadcast/help-status?attempt_id=${encodeURIComponent(ATTEMPT_ID)}`);
+    if (!res.ok) return;
+    const { pending } = await res.json();
+    if (pending) showHelpButton(true);
+    else if (Date.now() - helpRaisedAt > HELP_GRACE_MS) showHelpButton(false);
+  } catch (e) { /* try again next time */ }
+}, HELP_POLL_MS);
+
+function setupAntiCheat() {
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      tabSwitchCount++;
+      fetch(`${API}/api/attempts/${encodeURIComponent(ATTEMPT_ID)}/incidents`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ incident_type: 'tab_switch', details: `Strike ${tabSwitchCount}` })
+      }).catch(() => {});
+    } else {
+      if (tabSwitchCount >= 3) {
+        alert('You have exceeded the allowed tab switches. Your exam is being submitted.');
+        doSubmit('anti_cheat')
+      } else if (tabSwitchCount > 0) {
+        alert(`Strike ${tabSwitchCount}: Do not leave the page. After 3 strikes, your exam will submit automatically.`);
+      }
+    }
+  });
+}
+
+async function advanceBundle() {
+  document.getElementById('loadingText').textContent = 'Loading next exam...';
+  await pushTimerNow(); // save the precise value right before leaving this exam
+  try {
+    const res = await fetch(`${API}/api/bundle-attempts/${encodeURIComponent(BUNDLE_ATTEMPT_ID)}/advance`, {
+      method: 'POST'
+    });
+    const data = await res.json();
+
+    if (data.completed) {
+      try { localStorage.removeItem(storageKeyTimer); } catch (e) {}
+      // window.location.href = `/bundle-finish?bundle_attempt_id=${encodeURIComponent(BUNDLE_ATTEMPT_ID)}`;
+            goTo(`/exam-finish?exam_code=${encodeURIComponent(examData.exam.exam_code)}&section=${SECTION}`);
+      return;
+    }
+
+    const url = `/exam-taking?attempt_id=${encodeURIComponent(data.attempt_id)}&section=A` +
+      `&bundle_attempt_id=${encodeURIComponent(BUNDLE_ATTEMPT_ID)}` +
+      `&bundle_code=${encodeURIComponent(params.get('bundle_code'))}` +
+      `&item_order=${data.current_item_order}&total_items=${data.total_items}` +
+      `&remaining_seconds=${data.remaining_seconds}&nav_mode=${encodeURIComponent(NAV_MODE)}`;
+    // window.location.href = url;
+    goTo(url)
+  } catch (err) {
+    alert('Failed to advance to the next exam: ' + err.message);
+  }
+}
+
+function confirmSubmit() {
+  document.getElementById('submitModal').classList.add('show');
+}
+function closeModal() {
+  document.getElementById('submitModal').classList.remove('show');
+}
+
+async function doSubmit(reason = 'student_manual') {
+  closeModal();
+  clearInterval(timerInterval);
+  document.getElementById('loadingOverlay').classList.add('show');
+
+  try {
+    const bodyPayload = { exam_code: examData.exam.exam_code, section: SECTION, answers: selectedAnswers, submission_reason: reason };
+        if (SECTION === 'B') {
+      // All theory questions in one exam share one answer_mode by design —
+      // take it from the first question loaded.
+      bodyPayload.answer_mode = examData.questions[0] ? examData.questions[0].answer_mode : 'screen_to_screen';
+    }
+
+    const res = await fetch(`${API}/api/attempts/${encodeURIComponent(ATTEMPT_ID)}/save-answers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyPayload)
+    });
+    const data = await res.json();
+
+    document.getElementById('loadingOverlay').classList.remove('show');
+    if (data.success) {
+      try { localStorage.removeItem(storageKeyAnswers); } catch (e) {}
+
+                     if (BUNDLE_ATTEMPT_ID && NAV_MODE === 'free') {
+        await submitAllExams(reason); // reason !== 'student_manual' skips the confirm dialog inside
+      } else if (BUNDLE_ATTEMPT_ID) {
+        await advanceBundle();
+      } else {
+        try { localStorage.removeItem(storageKeyTimer); } catch (e) {}
+        // window.location.href = `/exam-finish?exam_code=${encodeURIComponent(examData.exam.exam_code)}&section=${SECTION}`;
+              goTo(`/exam-finish?exam_code=${encodeURIComponent(examData.exam.exam_code)}&section=${SECTION}`);
+      }
+    } else {
+      alert(data.message || 'Submission failed. Please try again.');
+    }
+  } catch (err) {
+    document.getElementById('loadingOverlay').classList.remove('show');
+    alert('Network error during submission: ' + err.message);
+  }
+}
+
+loadExam();
+</script>
+
+</body>
+</html>

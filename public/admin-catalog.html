@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Classes, Programs & Subjects</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .content { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+  .page-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 6px; }
+  .page-head h2 { font-size: 22px; }
+  .sub { color: var(--text-muted); font-size: 13px; margin-bottom: 18px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+  .tab-active { background: var(--navy) !important; color: white !important; }
+
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  th, td { text-align: left; padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--border); }
+  th { background: var(--bg); color: var(--text-muted); text-transform: uppercase; font-size: 11px; letter-spacing: .5px; }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .pill.cloud { background: #EFF6FF; color: #1E40AF; }
+  .pill.local { background: #FFF7ED; color: var(--orange-dark); }
+  .muted { color: var(--text-muted); font-size: 12px; }
+  .empty { text-align: center; color: var(--text-muted); padding: 60px 20px; }
+  .row-actions button { padding: 5px 10px; font-size: 12px; margin-right: 6px; }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 998; padding: 20px; }
+  .modal-backdrop.show { display: flex; }
+  .modal-box { background: white; border-radius: 16px; padding: 26px; max-width: 420px; width: 100%; }
+  .modal-box h3 { font-size: 18px; margin-bottom: 16px; }
+  .form-row { margin-bottom: 14px; }
+  .form-row label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 5px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+  .modal-actions button { flex: 1; }
+</style>
+</head>
+<body class="has-sidebar">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+    <div class="content">
+      <div class="page-head">
+        <h2>Classes, Programs & Subjects</h2>
+        <button class="btn btn-primary" id="addBtn" onclick="openAdd()"></button>
+      </div>
+      <div class="sub" id="sub"></div>
+      <div class="tabs">
+        <button class="btn btn-ghost" id="tab-classes" onclick="setType('classes')">Classes</button>
+        <button class="btn btn-ghost" id="tab-programs" onclick="setType('programs')">Programs</button>
+        <button class="btn btn-ghost" id="tab-subjects" onclick="setType('subjects')">Subjects</button>
+      </div>
+      <div id="tableContainer"></div>
+    </div>
+  </div>
+
+<div class="modal-backdrop" id="modal">
+  <div class="modal-box">
+    <h3 id="modalTitle"></h3>
+    <div id="modalAlert" class="alert alert-error"></div>
+    <div class="form-row">
+      <label id="nameLabel">Name</label>
+      <input class="input" id="nameInput" maxlength="100" />
+    </div>
+    <div class="form-row" id="codeRow">
+      <label>Code (optional)</label>
+      <input class="input" id="codeInput" maxlength="20" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="save()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin;
+const TYPES = {
+  classes:  { single: 'class',   nameLabel: 'Class name',   hasCode: false, hasStudents: true,  hint: 'Schools group students into classes (JSS1, SS2 Gold…). Cloud classes are read-only here; add your own for anything missing.' },
+  programs: { single: 'program', nameLabel: 'Program name', hasCode: true,  hasStudents: true,  hint: 'Training centers and organizations group candidates into programs instead of classes.' },
+  subjects: { single: 'subject', nameLabel: 'Subject name', hasCode: true,  hasStudents: false, hint: 'Every exam needs a subject. Subjects you add here stay on this computer.' }
+};
+
+let type = 'classes';
+let rows = [];
+let editingId = null;
+
+function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str ?? ''; return d.innerHTML; }
+
+function setType(t) {
+  type = t;
+  Object.keys(TYPES).forEach(k => document.getElementById('tab-' + k).classList.toggle('tab-active', k === t));
+  document.getElementById('addBtn').textContent = '+ Add ' + TYPES[t].single;
+  document.getElementById('sub').textContent = TYPES[t].hint;
+  load();
+}
+
+async function load() {
+  const container = document.getElementById('tableContainer');
+  try {
+    const res = await fetch(`${API}/api/catalog/${type}`);
+    if (res.status === 401) { window.location.href = '/admin-login'; return; }
+    rows = await res.json();
+    render();
+  } catch (err) {
+    container.innerHTML = `<div class="empty">Failed to load: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function render() {
+  const cfg = TYPES[type];
+  const container = document.getElementById('tableContainer');
+
+  if (rows.length === 0) {
+    container.innerHTML = `<div class="empty">No ${type} yet. Click “+ Add ${cfg.single}” or sync from the cloud.</div>`;
+    return;
+  }
+
+  const body = rows.map(r => `
+    <tr>
+      <td><strong>${escapeHtml(r.name)}</strong></td>
+      ${cfg.hasCode ? `<td class="muted">${escapeHtml(r.code || '—')}</td>` : ''}
+      <td><span class="pill ${r.is_local ? 'local' : 'cloud'}">${r.is_local ? 'Local' : 'Cloud'}</span></td>
+      ${cfg.hasStudents ? `<td>${r.students}</td>` : ''}
+      <td>${r.exams}</td>
+      <td class="row-actions">${r.is_local
+        ? `<button class="btn btn-ghost" onclick="openEdit(${r.id})">Rename</button>
+           <button class="btn btn-ghost" style="color:var(--danger)" onclick="removeRow(${r.id})">Delete</button>`
+        : '<span class="muted">Managed in the cloud</span>'}</td>
+    </tr>`).join('');
+
+  container.innerHTML = `<table>
+    <thead><tr><th>Name</th>${cfg.hasCode ? '<th>Code</th>' : ''}<th>Source</th>${cfg.hasStudents ? '<th>Students</th>' : ''}<th>Exams</th><th></th></tr></thead>
+    <tbody>${body}</tbody></table>`;
+}
+
+function openModal(title) {
+  const cfg = TYPES[type];
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('nameLabel').textContent = cfg.nameLabel;
+  document.getElementById('codeRow').style.display = cfg.hasCode ? 'block' : 'none';
+  document.getElementById('modalAlert').classList.remove('show');
+  document.getElementById('modal').classList.add('show');
+  document.getElementById('nameInput').focus();
+}
+
+function openAdd() {
+  editingId = null;
+  document.getElementById('nameInput').value = '';
+  document.getElementById('codeInput').value = '';
+  openModal('Add ' + TYPES[type].single);
+}
+
+function openEdit(id) {
+  const r = rows.find(x => x.id === id);
+  if (!r) return;
+  editingId = id;
+  document.getElementById('nameInput').value = r.name;
+  document.getElementById('codeInput').value = r.code || '';
+  openModal('Rename ' + TYPES[type].single);
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+
+async function save() {
+  const btn = document.getElementById('saveBtn');
+  const alertBox = document.getElementById('modalAlert');
+  alertBox.classList.remove('show');
+  btn.disabled = true;
+
+  try {
+    const url = editingId ? `${API}/api/catalog/${type}/${editingId}` : `${API}/api/catalog/${type}`;
+    const res = await fetch(url, {
+      method: editingId ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: document.getElementById('nameInput').value, code: document.getElementById('codeInput').value })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alertBox.textContent = data.error || data.message || 'Could not save.';
+      alertBox.classList.add('show');
+      return;
+    }
+    closeModal();
+    load();
+  } catch (err) {
+    alertBox.textContent = 'Connection failed: ' + err.message;
+    alertBox.classList.add('show');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function removeRow(id) {
+  const r = rows.find(x => x.id === id);
+  if (!r || !confirm(`Delete “${r.name}”?`)) return;
+  const res = await fetch(`${API}/api/catalog/${type}/${id}`, { method: 'DELETE' });
+  const data = await res.json();
+  if (!res.ok) { alert(data.error || data.message || 'Could not delete.'); return; }
+  load();
+}
+
+document.getElementById('nameInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
+
+async function checkAdminSession() {
+  try {
+    const body = await (await fetch(`${API}/api/auth/admin-me`)).json();
+    if (!body.success) { window.location.href = '/admin-login'; return; }
+    setType('classes');
+  } catch (err) {
+    window.location.href = '/admin-login';
+  }
+}
+checkAdminSession();
+</script>
+<script src="/sidebar.js"></script>
+<script src="/branding.js"></script>
+</body>
+</html>

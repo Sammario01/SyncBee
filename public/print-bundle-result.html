@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Bundle Result Slip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  body { background: #f0f2f5; padding: 40px 20px; }
+  .slip { background: white; max-width: 650px; margin: 0 auto; padding: 50px; border-radius: 4px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  .slip-header { text-align: center; border-bottom: 3px solid var(--navy); padding-bottom: 20px; margin-bottom: 30px; }
+  .slip-header h1 { font-size: 20px; color: var(--navy); }
+  .slip-header .sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  table.breakdown-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+  table.breakdown-table th, table.breakdown-table td { padding: 10px 12px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--border); }
+  table.breakdown-table th { background: var(--bg); text-transform: uppercase; font-size: 11px; color: var(--text-muted); }
+  table.breakdown-table td.num { text-align: right; }
+  table.breakdown-table tr.total-row td { font-weight: 700; border-top: 2px solid var(--navy); border-bottom: none; }
+
+  .print-controls { max-width: 650px; margin: 0 auto 16px; text-align: right; }
+  @media print { body { background: white; padding: 0; } .print-controls { display: none; } .slip { box-shadow: none; max-width: 100%; } }
+</style>
+</head>
+<body>
+
+<div class="print-controls"><button class="btn btn-primary" onclick="window.print()">🖨 Print / Save as PDF</button></div>
+
+<div class="slip">
+  <div class="slip-header">
+    <div class="brand-logo-slot" style="display:flex; justify-content:center; margin-bottom:10px;">
+      <svg width="40" height="40" viewBox="0 0 100 100"><polygon points="50,3 93,26 93,74 50,97 7,74 7,26" fill="#F5941F"/><text x="50" y="66" font-family="Poppins, sans-serif" font-weight="700" font-size="48" fill="#0F2647" text-anchor="middle">S</text></svg>
+    </div>
+    <h1><span class="brand-name-text">SyncBee</span> — Combined Examination Result</h1>
+    <div class="sub">Issued by Mariobee Offsync Examination System</div>
+  </div>
+  <div id="slipBody">Loading...</div>
+</div>
+
+<script>
+const API = window.location.origin;
+const params = new URLSearchParams(window.location.search);
+const bundleCode = params.get('bundle_code');
+const bundleAttemptId = params.get('bundle_attempt_id');
+
+function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str ?? ''; return d.innerHTML; }
+
+async function load() {
+  try {
+    const res = await fetch(`${API}/api/results/bundle/${encodeURIComponent(bundleCode)}/breakdown/${encodeURIComponent(bundleAttemptId)}`);
+    const d = await res.json();
+    if (!res.ok) { document.getElementById('slipBody').innerHTML = `<p style="text-align:center;color:var(--danger);">${escapeHtml(d.error)}</p>`; return; }
+
+    const rows = d.breakdown.map(b => `
+      <tr>
+        <td>${escapeHtml(b.exam_title)}</td>
+        <td class="num">${formatDuration(b.time_spent_seconds)}</td>
+        <td class="num">${b.attempted ? b.score : '—'} / ${b.total_marks}</td>
+      </tr>`).join('');
+
+    document.getElementById('slipBody').innerHTML = `
+      <table style="width:100%; margin-bottom:20px;">
+        <tr><td style="color:var(--text-muted); font-size:13px;">Student Name</td><td style="text-align:right; font-weight:700;">${escapeHtml(d.student_name)}</td></tr>
+        <tr><td style="color:var(--text-muted); font-size:13px;">Date Completed</td><td style="text-align:right;">${escapeHtml((d.finished_at || '').slice(0, 10))}</td></tr>
+        <tr><td style="color:var(--text-muted); font-size:13px;">Reference ID</td><td style="text-align:right; font-family:monospace; font-size:11px;">${escapeHtml(d.bundle_attempt_id)}</td></tr>
+      </table>
+      <table class="breakdown-table">
+        <thead><tr><th>Subject / Exam</th><th style="text-align:right;">Time Spent</th><th style="text-align:right;">Score</th></tr></thead>
+        <tbody>${rows}<tr class="total-row"><td>Combined Total</td><td></td><td class="num">${d.combined_score} / ${d.combined_total}</td></tr></tbody>
+      </table>`;
+  } catch (err) {
+    document.getElementById('slipBody').innerHTML = `<p style="text-align:center;color:var(--danger);">Connection failed</p>`;
+  }
+}
+function formatDuration(totalSeconds) {
+  if (totalSeconds === null || totalSeconds === undefined) return '—';
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}m ${s}s`;
+}
+
+load();
+</script>
+
+<script src="/branding.js"></script>
+</body>
+</html>

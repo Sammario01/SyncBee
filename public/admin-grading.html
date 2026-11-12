@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Grade Theory Answers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .topbar { background: var(--navy); color: white; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar .brand { display: flex; align-items: center; gap: 10px; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 18px; }
+  .nav-links { display: flex; gap: 16px; flex-wrap: wrap; }
+  .nav-links a { color: #B9C6D6; text-decoration: none; font-size: 13px; }
+  .nav-links a:hover, .nav-links a.active { color: white; }
+
+  .content { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+  .page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 16px; }
+  .page-head h2 { font-size: 22px; }
+  select.input { max-width: 320px; }
+
+  .answer-card { background: white; border-radius: 14px; padding: 20px 22px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  .answer-card.marked { opacity: 0.7; }
+  .a-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .a-student { font-weight: 700; font-size: 14px; }
+  .a-question { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .pill.pending { background: #FFF7ED; color: var(--orange-dark); }
+  .pill.marked { background: #ECFDF5; color: var(--emerald-dark); }
+
+  .answer-text { background: var(--bg); border-radius: 8px; padding: 14px 16px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; margin-bottom: 14px; }
+  .paper-note { background: #FFF7ED; color: var(--orange-dark); border-radius: 8px; padding: 12px 16px; font-size: 13px; margin-bottom: 14px; }
+
+  .grade-row { display: flex; gap: 12px; align-items: flex-end; }
+  .grade-row .score-input { width: 100px; }
+  .grade-row .comment-input { flex: 1; }
+  .grade-row label { font-size: 12px; font-weight: 600; display: block; margin-bottom: 5px; }
+  .empty { text-align: center; color: var(--text-muted); padding: 60px 20px; }
+</style>
+</head>
+<body class="has-sidebar">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+
+<div id="sidebar-slot"></div>
+<div class="content">
+  <div class="page-head">
+    <h2>Grade Theory Answers</h2>
+    <select class="input" id="examPicker" onchange="onExamChange()"></select>
+  </div>
+  <div id="listContainer"></div>
+</div>
+
+<script>
+const API = window.location.origin;
+let currentExam = null;
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+async function loadExamPicker() {
+  try {
+    const res = await fetch(`${API}/api/grading/exams`);
+    const exams = await res.json();
+    const picker = document.getElementById('examPicker');
+
+    if (exams.length === 0) {
+      picker.innerHTML = '<option>No theory answers yet</option>';
+      document.getElementById('listContainer').innerHTML = `<div class="empty">No theory answers have been submitted for any exam yet.</div>`;
+      return;
+    }
+
+    picker.innerHTML = exams.map(e => `<option value="${e.exam_code}">${escapeHtml(e.exam_title)}</option>`).join('');
+    currentExam = exams[0].exam_code;
+    loadAnswers();
+  } catch (err) {
+    document.getElementById('listContainer').innerHTML = `<div class="empty">Failed to load: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function onExamChange() {
+  currentExam = document.getElementById('examPicker').value;
+  loadAnswers();
+}
+
+async function loadAnswers() {
+  if (!currentExam) return;
+  try {
+    const res = await fetch(`${API}/api/grading/exam/${encodeURIComponent(currentExam)}`);
+    const answers = await res.json();
+    renderList(answers);
+  } catch (err) {
+    document.getElementById('listContainer').innerHTML = `<div class="empty">Failed to load: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function renderList(answers) {
+  const container = document.getElementById('listContainer');
+  if (answers.length === 0) {
+    container.innerHTML = `<div class="empty">No theory answers for this exam.</div>`;
+    return;
+  }
+
+  container.innerHTML = answers.map(a => {
+    const fullName = [a.firstname, a.middlename, a.lastname].filter(Boolean).join(' ') || a.student_id;
+    const isMarked = a.status === 'marked';
+    const bodyHtml = a.answer_mode === 'screen_to_paper'
+      ? `<div class="paper-note">✎ This student answered on paper. No typed text to review — enter the score from their physical answer sheet.</div>`
+      : `<div class="answer-text">${escapeHtml(a.answer_text) || '(empty)'}</div>`;
+
+    return `
+      <div class="answer-card ${isMarked ? 'marked' : ''}" id="card-${a.answer_id}">
+        <div class="a-head">
+          <div>
+            <div class="a-student">${escapeHtml(fullName)}</div>
+            <div class="a-question">${escapeHtml(a.question_text)}${a.word_count ? ` · ${a.word_count} words` : ''}</div>
+          </div>
+          <span class="pill ${isMarked ? 'marked' : 'pending'}">${isMarked ? `Marked — ${a.score}/${a.max_score}` : 'Pending'}</span>
+        </div>
+        ${bodyHtml}
+        <div class="grade-row">
+          <div class="score-input">
+            <label>Score (max ${a.max_score})</label>
+            <input class="input" type="number" min="0" max="${a.max_score}" step="0.5" id="score-${a.answer_id}" value="${isMarked ? a.score : ''}" />
+          </div>
+          <div class="comment-input">
+            <label>Comment (optional)</label>
+            <input class="input" id="comment-${a.answer_id}" value="${escapeHtml(a.marker_comment || '')}" />
+          </div>
+          <button class="btn btn-primary" onclick="saveScore('${a.answer_id}', ${a.max_score})">${isMarked ? 'Update' : 'Save'}</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function saveScore(answerId, maxScore) {
+  const score = document.getElementById(`score-${answerId}`).value;
+  const comment = document.getElementById(`comment-${answerId}`).value;
+
+  if (score === '' || parseFloat(score) < 0 || parseFloat(score) > maxScore) {
+    alert(`Enter a score between 0 and ${maxScore}.`);
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/grading/mark`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answer_id: answerId, score: parseFloat(score), marker_comment: comment })
+    });
+    const data = await res.json();
+    if (!data.success) { alert(data.message); return; }
+    loadAnswers();
+  } catch (err) {
+    alert('Connection failed: ' + err.message);
+  }
+}
+
+async function checkAdminSession() {
+  try {
+    const res = await fetch(`${API}/api/auth/admin-me`);
+    const data = await res.json();
+    if (!data.success) { window.location.href = '/admin-login'; return; }
+    loadExamPicker();
+  } catch (err) {
+    window.location.href = '/admin-login';
+  }
+}
+checkAdminSession();
+</script>
+
+<script src="/sidebar.js"></script>
+
+<script src="/branding.js"></script>
+ </div>
+</body>
+</html>

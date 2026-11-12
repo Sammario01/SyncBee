@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Candidate Devices</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .content { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+  .page-head { margin-bottom: 20px; }
+  .page-head h2 { font-size: 22px; }
+  .page-head .sub { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+
+  .capacity-card { background: white; border-radius: 12px; padding: 18px 22px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  .capacity-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .capacity-top .big { font-size: 24px; font-weight: 700; color: var(--navy); }
+  .bar-outer { background: var(--bg); border-radius: 20px; height: 10px; overflow: hidden; }
+  .bar-inner { height: 100%; background: var(--emerald); transition: width 0.3s ease; }
+  .bar-inner.warn { background: var(--orange); }
+  .bar-inner.full { background: var(--danger); }
+
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  th, td { text-align: left; padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--border); }
+  th { background: var(--bg); color: var(--text-muted); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+  .empty { text-align: center; color: var(--text-muted); padding: 60px 20px; }
+  .muted { color: var(--text-muted); font-size: 12px; }
+</style>
+</head>
+<body class="has-sidebar">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+    <div class="content">
+      <div class="page-head">
+        <h2>Candidate Devices</h2>
+        <div class="sub">Each computer takes one licensed seat the first time a student logs in from it.</div>
+      </div>
+
+      <div class="capacity-card" id="capacityCard"></div>
+      <div id="tableContainer"></div>
+    </div>
+  </div>
+
+<script>
+const API = window.location.origin;
+
+function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str ?? ''; return d.innerHTML; }
+
+function describeDevice(ua) {
+  ua = ua || '';
+  const os = /Windows/.test(ua) ? 'Windows' : /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS'
+    : /Mac OS/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : 'Unknown OS';
+  const browser = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Firefox\//.test(ua) ? 'Firefox'
+    : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'Browser';
+  return `${browser} on ${os}`;
+}
+
+function timeAgo(sqlDateTime) {
+  if (!sqlDateTime) return '—';
+  const diffMin = Math.floor((Date.now() - new Date(sqlDateTime.replace(' ', 'T') + 'Z').getTime()) / 60000);
+  if (diffMin < 1) return 'Just now';
+  if (diffMin < 60) return `${diffMin} min ago`;
+  if (diffMin < 1440) return `${Math.floor(diffMin / 60)} hr ago`;
+  return `${Math.floor(diffMin / 1440)} day(s) ago`;
+}
+
+async function load() {
+  try {
+    const res = await fetch(`${API}/api/devices`);
+    const data = await res.json();
+    renderCapacity(data);
+       if (!document.activeElement || !document.activeElement.classList.contains('pos-input')) renderTable(data.devices);
+  } catch (err) {
+    document.getElementById('tableContainer').innerHTML = `<div class="empty">Failed to load: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function renderCapacity(data) {
+  const unlimited = data.max === null;
+  const pct = unlimited ? 0 : Math.min(100, Math.round((data.used / data.max) * 100));
+  const cls = pct >= 100 ? 'full' : pct >= 80 ? 'warn' : '';
+  document.getElementById('capacityCard').innerHTML = `
+    <div class="capacity-top">
+      <span class="big">${data.used}${unlimited ? '' : ' / ' + data.max}</span>
+      <span class="muted">${unlimited ? 'Unlimited candidate computers' : 'candidate computers in use'}</span>
+    </div>
+    ${unlimited ? '' : `<div class="bar-outer"><div class="bar-inner ${cls}" style="width:${pct}%"></div></div>`}`;
+}
+
+function renderTable(devices) {
+  const container = document.getElementById('tableContainer');
+  if (devices.length === 0) {
+    container.innerHTML = `<div class="empty">No candidate computers registered yet. A seat is taken the first time a student logs in from a computer.</div>`;
+    return;
+  }
+
+  const rows = devices.map((d, i) => `
+    <tr>
+      <td><strong>Seat ${i + 1}</strong></td>
+      <td><input class="input pos-input" style="width:72px; padding:4px 8px; font-size:12px; text-transform:uppercase;" maxlength="4" placeholder="A1" data-id="${d.id}" value="${escapeHtml(d.seat_label || '')}" onchange="savePosition(this)"></td>
+      <td>${escapeHtml(describeDevice(d.user_agent))}</td>
+      <td>${escapeHtml(d.last_ip || '—')}</td>
+      <td>${escapeHtml(d.last_student_name || '—')}</td>
+      <td class="muted">${timeAgo(d.last_seen_at)}</td>
+      <td><button class="btn btn-ghost" style="padding:5px 10px; font-size:12px; color:var(--danger);" onclick="freeSeat(${d.id})">Free Seat</button></td>
+    </tr>`).join('');
+
+  container.innerHTML = `
+    <table>
+      <thead><tr><th>Seat</th><th>Position</th><th>Browser / OS</th><th>IP Address</th><th>Last Student</th><th>Last Seen</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+async function savePosition(el) {
+  try {
+    const res = await fetch(`${API}/api/devices/${el.dataset.id}/seat`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seat_label: el.value })
+    });
+    const data = await res.json();
+    if (!res.ok) alert(data.error || data.message || 'Could not save the position.');
+  } catch (err) {
+    alert('Connection failed: ' + err.message);
+  }
+  load();
+}
+
+async function freeSeat(id) {
+  if (!confirm('Free this seat? That computer can take a seat again the next time a student logs in from it, if one is available.')) return;
+  await fetch(`${API}/api/devices/${id}`, { method: 'DELETE' });
+  load();
+}
+
+async function checkAdminSession() {
+  try {
+    const res = await fetch(`${API}/api/auth/admin-me`);
+    const data = await res.json();
+    if (!data.success) { window.location.href = '/admin-login'; return; }
+    load();
+    setInterval(load, 10000);
+  } catch (err) {
+    window.location.href = '/admin-login';
+  }
+}
+checkAdminSession();
+</script>
+<script src="/sidebar.js"></script>
+<script src="/branding.js"></script>
+</body>
+</html>

@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Students</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .content { max-width: 1150px; margin: 0 auto; padding: 32px 24px; }
+  .page-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+  .page-head h2 { font-size: 22px; }
+  .head-actions { display: flex; gap: 10px; }
+  .sub { color: var(--text-muted); font-size: 13px; margin-bottom: 18px; }
+  .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .filters .input { width: auto; min-width: 150px; }
+  .filters #search { flex: 1; min-width: 220px; }
+
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  th, td { text-align: left; padding: 11px 14px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  th { background: var(--bg); color: var(--text-muted); text-transform: uppercase; font-size: 11px; letter-spacing: .5px; }
+  .muted { color: var(--text-muted); font-size: 12px; }
+  .mono { font-family: monospace; font-size: 12px; }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .pill.cloud { background: #EFF6FF; color: #1E40AF; }
+  .pill.local { background: #FFF7ED; color: var(--orange-dark); }
+  .pill.on { background: #ECFDF5; color: var(--emerald-dark); }
+  .pill.off { background: var(--danger-bg); color: var(--danger); }
+  .pill.dup { background: #FEF9C3; color: #854D0E; }
+  .acts { white-space: nowrap; }
+  .acts button { padding: 4px 9px; font-size: 12px; margin-right: 4px; }
+  .acts .danger { color: var(--danger); }
+  .empty { text-align: center; color: var(--text-muted); padding: 60px 20px; }
+  .more { text-align: center; margin-top: 14px; }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 998; padding: 20px; }
+  .modal-backdrop.show { display: flex; }
+  .modal-box { background: white; border-radius: 16px; padding: 26px; max-width: 520px; width: 100%; max-height: 92vh; overflow-y: auto; }
+  .modal-box.wide { max-width: 860px; }
+  .modal-box h3 { font-size: 18px; margin-bottom: 14px; }
+  .form-row { margin-bottom: 12px; }
+  .form-row label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 5px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .check { display: flex; gap: 8px; align-items: center; font-size: 13px; margin: 6px 0; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+  .modal-actions button { flex: 1; }
+  textarea.input { font-family: monospace; font-size: 12px; resize: vertical; }
+
+  .cred { background: var(--bg); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; font-size: 13px; }
+  .cred .nm { font-weight: 700; }
+  .cred .vals { display: flex; gap: 22px; margin-top: 6px; font-family: monospace; font-size: 15px; }
+  .cred .vals span { color: var(--text-muted); font-size: 11px; font-family: Manrope, sans-serif; display: block; }
+  .warnbox { background: #FFF7ED; color: var(--orange-dark); border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 12px; }
+
+  .summary { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .summary .box { background: var(--bg); border-radius: 10px; padding: 8px 14px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+  .summary .box strong { display: block; font-size: 20px; color: var(--navy); text-transform: none; }
+  .preview-wrap { max-height: 320px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; }
+  .preview-wrap table { box-shadow: none; border-radius: 0; }
+  .bar-outer { background: var(--bg); border-radius: 20px; height: 12px; overflow: hidden; margin: 14px 0 6px; }
+  .bar-inner { height: 100%; background: var(--emerald); width: 0; transition: width .2s ease; }
+
+  #printArea { display: none; }
+  .slip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .slip { border: 1px dashed #666; padding: 12px 14px; break-inside: avoid; font-size: 12px; color: #000; }
+  .slip-title { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: #555; }
+  .slip-name { font-size: 15px; font-weight: 700; margin: 4px 0 2px; }
+  .slip-meta { color: #555; margin-bottom: 8px; }
+  .slip-row { display: flex; justify-content: space-between; padding: 4px 0; border-top: 1px solid #ddd; }
+  .slip-row strong { font-family: monospace; font-size: 14px; }
+  .slip-url, .slip-note { margin-top: 6px; font-size: 10px; color: #555; }
+  @media print {
+    body > *:not(#printArea) { display: none !important; }
+    #printArea { display: block !important; }
+    body { background: white; }
+  }
+</style>
+</head>
+<body class="has-sidebar">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+    <div class="content">
+      <div class="page-head">
+        <h2>Students <span class="muted" id="countPill"></span></h2>
+        <div class="head-actions">
+          <button class="btn btn-ghost" onclick="openBulk()">⬆ Bulk Upload</button>
+          <button class="btn btn-primary" onclick="openRegister()">+ Register Student</button>
+        </div>
+      </div>
+      <div class="sub">Cloud students are managed in your Mariobee account. Students you register here stay on this computer.</div>
+
+      <div class="filters">
+        <input class="input" id="search" placeholder="Search by name, student ID or registration number…" oninput="visible = 200; render()">
+        <select class="input" id="groupFilter" onchange="visible = 200; render()"></select>
+        <select class="input" id="sourceFilter" onchange="visible = 200; render()">
+          <option value="">All sources</option><option value="cloud">Cloud</option><option value="local">Local</option>
+        </select>
+      </div>
+      <div id="tableContainer"></div>
+    </div>
+  </div>
+
+<!-- Register / edit -->
+<div class="modal-backdrop" id="studentModal">
+  <div class="modal-box">
+    <h3 id="studentModalTitle"></h3>
+    <div id="studentAlert" class="alert alert-error"></div>
+    <div class="two-col">
+      <div class="form-row"><label>First name *</label><input class="input" id="fFirst" maxlength="50"></div>
+      <div class="form-row"><label>Last name *</label><input class="input" id="fLast" maxlength="50"></div>
+    </div>
+    <div class="two-col">
+      <div class="form-row"><label>Middle name</label><input class="input" id="fMiddle" maxlength="50"></div>
+      <div class="form-row"><label>Gender</label><select class="input" id="fGender"><option value="">—</option><option>Male</option><option>Female</option></select></div>
+    </div>
+    <div class="two-col">
+      <div class="form-row"><label>Class</label><select class="input" id="fClass"></select></div>
+      <div class="form-row"><label>Program</label><select class="input" id="fProgram"></select></div>
+    </div>
+    <div class="form-row"><label>Registration number (optional)</label><input class="input" id="fReg" maxlength="30"></div>
+    <div id="newOnlyFields" class="two-col">
+      <div class="form-row"><label>Student ID</label><input class="input" id="fId" maxlength="40" placeholder="Auto (STU-00001)"></div>
+      <div class="form-row"><label>Password</label><input class="input" id="fPassword" maxlength="64" placeholder="Auto-generated"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('studentModal')">Cancel</button>
+      <button class="btn btn-primary" id="studentSaveBtn" onclick="saveStudent(false)">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Credentials (shown once) -->
+<div class="modal-backdrop" id="credModal">
+  <div class="modal-box">
+    <h3 id="credTitle"></h3>
+    <div class="warnbox">Passwords are stored encrypted and cannot be shown again. Print or download them now.</div>
+    <div id="credBody"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="downloadCredentials()">Download CSV</button>
+      <button class="btn btn-ghost" onclick="printSlips()">Print slips</button>
+      <button class="btn btn-primary" onclick="closeCredentials()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk upload -->
+<div class="modal-backdrop" id="bulkModal">
+  <div class="modal-box wide">
+    <h3>Bulk Upload Students</h3>
+    <div id="bulkAlert" class="alert alert-error"></div>
+
+    <div id="bulkStep1">
+      <div class="sub" style="margin-bottom:12px;">
+        Upload a CSV file, or copy the rows in Excel and paste them below. The first row must be the column headings.
+        <a href="#" onclick="downloadTemplate(); return false;">Download the template</a>.
+        Leave Student ID and Password blank to generate them.
+      </div>
+      <div class="form-row"><input type="file" id="bulkFile" accept=".csv,.tsv,.txt" onchange="onFileChosen(this)"></div>
+      <div class="form-row"><textarea class="input" id="bulkPaste" rows="6" placeholder="…or paste rows from Excel here (include the heading row)" oninput="bulkSource = 'paste'"></textarea></div>
+      <div class="two-col">
+        <div class="form-row"><label>Rows with no class go into</label><select class="input" id="bulkDefaultClass"></select></div>
+        <div class="form-row"><label>Rows with no program go into</label><select class="input" id="bulkDefaultProgram"></select></div>
+      </div>
+      <label class="check"><input type="checkbox" id="bulkCreateMissing"> Create classes and programs that do not exist yet</label>
+      <label class="check"><input type="checkbox" id="bulkAllowDup"> Import possible duplicates too (same name and class)</label>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeBulk()">Cancel</button>
+        <button class="btn btn-primary" id="bulkCheckBtn" onclick="checkBulk()">Check file</button>
+      </div>
+    </div>
+
+    <div id="bulkStep2" style="display:none;">
+      <div class="summary" id="bulkSummary"></div>
+      <div id="bulkNotes"></div>
+      <div class="preview-wrap" id="bulkPreview"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="showStep(1)">← Back</button>
+        <button class="btn btn-primary" id="bulkImportBtn" onclick="startImport()"></button>
+      </div>
+    </div>
+
+    <div id="bulkStep3" style="display:none;">
+      <div id="bulkProgressBox">
+        <div id="bulkProgressText" class="sub" style="margin:0;">Importing…</div>
+        <div class="bar-outer"><div class="bar-inner" id="bulkBar"></div></div>
+        <div class="warnbox" style="margin-top:12px;">Keep this page open until the import finishes.</div>
+      </div>
+      <div id="bulkDone" style="display:none;">
+        <div class="summary" id="bulkDoneSummary"></div>
+        <div class="warnbox" id="bulkDoneWarn"></div>
+        <div class="modal-actions" style="flex-wrap:wrap;">
+          <button class="btn btn-ghost" onclick="downloadCredentials()">Download credentials</button>
+          <button class="btn btn-ghost" onclick="printSlips()">Print login slips</button>
+          <button class="btn btn-ghost" id="problemsBtn" onclick="downloadProblems()">Download problems</button>
+          <button class="btn btn-primary" onclick="closeBulk()">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="printArea"></div>
+
+<script>
+const API = window.location.origin;
+
+let students = [], classes = [], programs = [];
+let serverAddress = '';
+let visible = 200;
+let editingId = null;
+let credentialsUnsaved = false;
+let lastCredentials = [];
+let bulkText = '', bulkSource = 'paste';
+let bulk = { rows: [], validation: [], created: [], skipped: [], failed: [], stopped: '' };
+
+const ALIASES = {
+  student_id: ['studentid', 'id', 'username', 'candidateid', 'studentno'],
+  firstname: ['firstname', 'first', 'forename', 'givenname', 'firstnames'],
+  middlename: ['middlename', 'middle', 'othername', 'othernames', 'middlenames'],
+  lastname: ['lastname', 'surname', 'last', 'familyname'],
+  gender: ['gender', 'sex'],
+  class: ['class', 'classname', 'level', 'grade'],
+  program: ['program', 'programme', 'programname', 'course'],
+  registration_number: ['registrationnumber', 'regnumber', 'regno', 'regnum', 'admissionnumber', 'admissionno', 'candidatenumber'],
+  password: ['password', 'pass', 'pin']
+};
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+function escAttr(s) { return esc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+function fullName(s) { return [s.firstname, s.middlename, s.lastname].filter(Boolean).join(' '); }
+function groupLabel(s) { return [s.class_name, s.program_name].filter(Boolean).join(' / ') || '—'; }
+
+async function api(path, options) {
+  const res = await fetch(API + path, options);
+  if (res.status === 401) { window.location.href = '/admin-login'; throw new Error('Not logged in'); }
+  let data = {};
+  try { data = await res.json(); } catch (e) { /* no body */ }
+  return { ok: res.ok, status: res.status, data };
+}
+function post(path, body) {
+  return api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+}
+function errText(r, fallback) { return (r.data && (r.data.error || r.data.message)) || fallback; }
+
+function showAlert(id, text) { const el = document.getElementById(id); el.textContent = text; el.classList.add('show'); }
+function hideAlert(id) { document.getElementById(id).classList.remove('show'); }
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// ── Loading and the table ──
+async function loadAll() {
+  const [c, p, s] = await Promise.all([
+    api('/api/exams/meta/classes'), api('/api/exams/meta/programs'), api('/api/students')
+  ]);
+  classes = Array.isArray(c.data) ? c.data : [];
+  programs = Array.isArray(p.data) ? p.data : [];
+  students = Array.isArray(s.data) ? s.data : [];
+  fillSelects();
+  render();
+}
+
+function optionsHtml(list, labelKey, emptyLabel) {
+  return `<option value="">${emptyLabel}</option>` + list.map(x => `<option value="${x.id}">${esc(x[labelKey])}</option>`).join('');
+}
+
+function fillSelects() {
+  const keep = document.getElementById('groupFilter').value;
+  document.getElementById('groupFilter').innerHTML =
+    '<option value="">All classes and programs</option>' +
+    classes.map(c => `<option value="c:${c.id}">Class: ${esc(c.name)}</option>`).join('') +
+    programs.map(p => `<option value="p:${p.id}">Program: ${esc(p.program_name)}</option>`).join('');
+  document.getElementById('groupFilter').value = keep;
+
+  document.getElementById('fClass').innerHTML = optionsHtml(classes, 'name', '— None —');
+  document.getElementById('fProgram').innerHTML = optionsHtml(programs, 'program_name', '— None —');
+  document.getElementById('bulkDefaultClass').innerHTML = optionsHtml(classes, 'name', '— None —');
+  document.getElementById('bulkDefaultProgram').innerHTML = optionsHtml(programs, 'program_name', '— None —');
+}
+
+function filtered() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const group = document.getElementById('groupFilter').value;
+  const source = document.getElementById('sourceFilter').value;
+  return students.filter(s => {
+    if (source && s.origin !== source) return false;
+    if (group.startsWith('c:') && String(s.class_id) !== group.slice(2)) return false;
+    if (group.startsWith('p:') && String(s.program_id) !== group.slice(2)) return false;
+    if (!q) return true;
+    return fullName(s).toLowerCase().includes(q) ||
+      String(s.student_id).toLowerCase().includes(q) ||
+      String(s.registration_number || '').toLowerCase().includes(q);
+  });
+}
+
+function render() {
+  const list = filtered();
+  document.getElementById('countPill').textContent = `${list.length} of ${students.length}`;
+  const container = document.getElementById('tableContainer');
+
+  if (students.length === 0) {
+    container.innerHTML = '<div class="empty">No students yet. Register one, upload a list, or sync from the cloud.</div>';
+    return;
+  }
+  if (list.length === 0) {
+    container.innerHTML = '<div class="empty">No students match your filters.</div>';
+    return;
+  }
+
+  const rows = list.slice(0, visible).map(s => {
+    const id = escAttr(s.student_id);
+    const isLocal = s.origin === 'local';
+    let actions = '';
+    if (isLocal) {
+      actions += `<button class="btn btn-ghost" data-act="edit" data-id="${id}">Edit</button>`;
+      actions += `<button class="btn btn-ghost" data-act="reset" data-id="${id}">Reset password</button>`;
+    }
+    actions += `<button class="btn btn-ghost" data-act="toggle" data-id="${id}">${s.active ? 'Deactivate' : 'Activate'}</button>`;
+    if (isLocal) actions += `<button class="btn btn-ghost danger" data-act="delete" data-id="${id}">Delete</button>`;
+
+    return `<tr>
+      <td><strong>${esc(fullName(s))}</strong><div class="muted">${esc(s.registration_number || '')}</div></td>
+      <td class="mono">${esc(s.student_id)}</td>
+      <td>${esc(groupLabel(s))}</td>
+      <td><span class="pill ${isLocal ? 'local' : 'cloud'}">${isLocal ? 'Local' : 'Cloud'}</span></td>
+      <td><span class="pill ${s.active ? 'on' : 'off'}">${s.active ? 'Active' : 'Deactivated'}</span></td>
+      <td class="acts">${actions}</td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML = `<table>
+    <thead><tr><th>Student</th><th>Student ID</th><th>Class / Program</th><th>Source</th><th>Status</th><th></th></tr></thead>
+    <tbody>${rows}</tbody></table>` +
+    (list.length > visible ? `<div class="more"><button class="btn btn-ghost" onclick="visible += 200; render()">Show more (${list.length - visible} left)</button></div>` : '');
+}
+
+document.getElementById('tableContainer').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-act]');
+  if (!btn) return;
+  const id = btn.dataset.id;
+  ({ edit: openEdit, reset: resetPassword, toggle: toggleActive, delete: deleteStudent })[btn.dataset.act](id);
+});
+
+// ── Register / edit ──
+function openRegister() {
+  editingId = null;
+  ['fFirst', 'fMiddle', 'fLast', 'fReg', 'fId', 'fPassword'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('fGender').value = '';
+  document.getElementById('fClass').value = '';
+  document.getElementById('fProgram').value = '';
+  document.getElementById('newOnlyFields').style.display = 'grid';
+  document.getElementById('studentModalTitle').textContent = 'Register Student';
+  hideAlert('studentAlert');
+  openModal('studentModal');
+  document.getElementById('fFirst').focus();
+}
+
+function openEdit(id) {
+  const s = students.find(x => x.student_id === id);
+  if (!s) return;
+  editingId = id;
+  document.getElementById('fFirst').value = s.firstname || '';
+  document.getElementById('fMiddle').value = s.middlename || '';
+  document.getElementById('fLast').value = s.lastname || '';
+  document.getElementById('fGender').value = s.gender || '';
+  document.getElementById('fClass').value = s.class_id || '';
+  document.getElementById('fProgram').value = s.program_id || '';
+  document.getElementById('fReg').value = s.registration_number || '';
+  document.getElementById('newOnlyFields').style.display = 'none';
+  document.getElementById('studentModalTitle').textContent = 'Edit Student';
+  hideAlert('studentAlert');
+  openModal('studentModal');
+}
+
+async function saveStudent(confirmDuplicate) {
+  const btn = document.getElementById('studentSaveBtn');
+  hideAlert('studentAlert');
+  const body = {
+    firstname: document.getElementById('fFirst').value,
+    middlename: document.getElementById('fMiddle').value,
+    lastname: document.getElementById('fLast').value,
+    gender: document.getElementById('fGender').value,
+    class_id: document.getElementById('fClass').value || null,
+    program_id: document.getElementById('fProgram').value || null,
+    registration_number: document.getElementById('fReg').value
+  };
+
+  btn.disabled = true;
+  try {
+    let r;
+    if (editingId) {
+      r = await api(`/api/students/${encodeURIComponent(editingId)}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+    } else {
+      body.student_id = document.getElementById('fId').value;
+      body.password = document.getElementById('fPassword').value;
+      body.confirm_duplicate = !!confirmDuplicate;
+      r = await post('/api/students', body);
+    }
+
+    if (r.status === 409 && r.data.code === 'POSSIBLE_DUPLICATE') {
+      btn.disabled = false;
+      if (confirm(`${r.data.error}\n\nRegister this student anyway?`)) return saveStudent(true);
+      return;
+    }
+    if (!r.ok) { showAlert('studentAlert', errText(r, 'Could not save.')); return; }
+
+    const wasNew = !editingId;
+    closeModal('studentModal');
+    await loadAll();
+    if (wasNew) {
+      const c = r.data;
+      showCredentials([{
+        name: [c.firstname, c.middlename, c.lastname].filter(Boolean).join(' '),
+        group: [c.class_name, c.program_name].filter(Boolean).join(' / '),
+        student_id: c.student_id, password: c.password,
+        firstname: c.firstname, middlename: c.middlename, lastname: c.lastname,
+        class_name: c.class_name, program_name: c.program_name
+      }], 'Student registered');
+    }
+  } catch (err) {
+    showAlert('studentAlert', 'Connection failed: ' + err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function resetPassword(id) {
+  const s = students.find(x => x.student_id === id);
+  if (!s || !confirm(`Generate a new password for ${fullName(s)}? The old one stops working immediately.`)) return;
+  const r = await post(`/api/students/${encodeURIComponent(id)}/reset-password`, {});
+  if (!r.ok) { alert(errText(r, 'Could not reset the password.')); return; }
+  showCredentials([{
+    name: fullName(s), group: groupLabel(s) === '—' ? '' : groupLabel(s),
+    student_id: r.data.student_id, password: r.data.password,
+    firstname: s.firstname, middlename: s.middlename, lastname: s.lastname,
+    class_name: s.class_name, program_name: s.program_name
+  }], 'New password');
+}
+
+async function toggleActive(id) {
+  const s = students.find(x => x.student_id === id);
+  if (!s) return;
+  if (s.active && !confirm(`Deactivate ${fullName(s)}? They will not be able to log in. Results are kept.`)) return;
+  const r = await post(`/api/students/${encodeURIComponent(id)}/active`, { active: !s.active });
+  if (!r.ok) { alert(errText(r, 'Could not update the student.')); return; }
+  await loadAll();
+}
+
+async function deleteStudent(id) {
+  const s = students.find(x => x.student_id === id);
+  if (!s || !confirm(`Delete ${fullName(s)}? This cannot be undone.`)) return;
+  const r = await api(`/api/students/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!r.ok) { alert(errText(r, 'Could not delete the student.')); return; }
+  await loadAll();
+}
+
+// ── Credentials: shown once, printable, downloadable ──
+function csvCell(v, raw) {
+  let s = String(v ?? '');
+  if (!raw && /^[=+\-@\t\r]/.test(s)) s = "'" + s; // stops Excel running a name as a formula
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+
+function downloadCsv(filename, rows, rawColumns) {
+  const text = '\uFEFF' + rows.map(r => r.map((v, i) => csvCell(v, rawColumns && rawColumns.includes(i))).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+}
+
+function showCredentials(list, title) {
+  lastCredentials = list;
+  credentialsUnsaved = true;
+  document.getElementById('credTitle').textContent = title;
+  document.getElementById('credBody').innerHTML = list.slice(0, 20).map(c => `
+    <div class="cred">
+      <div class="nm">${esc(c.name)}</div><div class="muted">${esc(c.group || '')}</div>
+      <div class="vals"><div><span>Student ID</span>${esc(c.student_id)}</div><div><span>Password</span>${esc(c.password)}</div></div>
+    </div>`).join('') +
+    (list.length > 20 ? `<div class="muted">…and ${list.length - 20} more. All of them are in the download and on the slips.</div>` : '');
+  openModal('credModal');
+}
+
+function closeCredentials() {
+  if (credentialsUnsaved && !confirm('You have not downloaded or printed these passwords, and they cannot be shown again. Close anyway?')) return;
+  credentialsUnsaved = false;
+  closeModal('credModal');
+}
+
+function downloadCredentials() {
+  if (!lastCredentials.length) return;
+  downloadCsv('student-logins.csv', [
+    ['Student ID', 'Password', 'First Name', 'Middle Name', 'Last Name', 'Class', 'Program'],
+    ...lastCredentials.map(c => [c.student_id, c.password, c.firstname, c.middlename, c.lastname, c.class_name || '', c.program_name || ''])
+  ], [1]);
+  credentialsUnsaved = false;
+}
+
+function printSlips() {
+  if (!lastCredentials.length) return;
+  document.getElementById('printArea').innerHTML = `<div class="slip-grid">${lastCredentials.map(c => `
+    <div class="slip">
+      <div class="slip-title">Exam login details</div>
+      <div class="slip-name">${esc(c.name)}</div>
+      <div class="slip-meta">${esc(c.group || '')}</div>
+      <div class="slip-row"><span>Student ID</span><strong>${esc(c.student_id)}</strong></div>
+      <div class="slip-row"><span>Password</span><strong>${esc(c.password)}</strong></div>
+      ${serverAddress ? `<div class="slip-url">Open in a browser: ${esc(serverAddress)}</div>` : ''}
+      <div class="slip-note">Keep this slip private.</div>
+    </div>`).join('')}</div>`;
+  credentialsUnsaved = false;
+  window.print();
+}
+window.addEventListener('afterprint', () => { document.getElementById('printArea').innerHTML = ''; });
+window.addEventListener('beforeunload', (e) => { if (credentialsUnsaved) { e.preventDefault(); e.returnValue = ''; } });
+
+// ── Bulk upload ──
+function parseDelimited(text) {
+  text = text.replace(/^\uFEFF/, '');
+  const firstLine = text.split(/\r?\n/).find(l => l.trim()) || '';
+  const counts = { ',': 0, ';': 0, '\t': 0 };
+  let inQ = false;
+  for (const ch of firstLine) {
+    if (ch === '"') inQ = !inQ;
+    else if (!inQ && Object.prototype.hasOwnProperty.call(counts, ch)) counts[ch]++;
+  }
+  const best = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+  const d = counts[best] > 0 ? best : ',';
+
+  const rows = [];
+  let row = [], field = '';
+  inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQ) {
+      if (ch === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; }
+      else field += ch;
+    } else if (ch === '"' && field === '') {
+      inQ = true;
+    } else if (ch === d) {
+      row.push(field); field = '';
+    } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); field = '';
+      if (row.some(c => c.trim() !== '')) rows.push(row);
+      row = [];
+    } else {
+      field += ch;
+    }
+  }
+  row.push(field);
+  if (row.some(c => c.trim() !== '')) rows.push(row);
+  return rows;
+}
+
+function openBulk() {
+  bulkText = ''; bulkSource = 'paste';
+  document.getElementById('bulkFile').value = '';
+  document.getElementById('bulkPaste').value = '';
+  hideAlert('bulkAlert');
+  showStep(1);
+  openModal('bulkModal');
+}
+
+function closeBulk() {
+  if (credentialsUnsaved && !confirm('You have not downloaded or printed the passwords, and they cannot be shown again. Close anyway?')) return;
+  credentialsUnsaved = false;
+  closeModal('bulkModal');
+  loadAll();
+}
+
+function showStep(n) {
+  [1, 2, 3].forEach(i => document.getElementById('bulkStep' + i).style.display = i === n ? 'block' : 'none');
+  hideAlert('bulkAlert');
+}
+
+async function onFileChosen(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) {
+    showAlert('bulkAlert', 'That file is larger than 2 MB. Split it into smaller files.');
+    input.value = '';
+    return;
+  }
+  const buf = await file.arrayBuffer();
+  try { bulkText = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+  catch (e) { bulkText = new TextDecoder('windows-1252').decode(buf); } // an older Excel "CSV" file
+  bulkSource = 'file';
+  document.getElementById('bulkPaste').value = '';
+  hideAlert('bulkAlert');
+}
+
+function downloadTemplate() {
+  downloadCsv('students-template.csv', [
+    ['first_name', 'middle_name', 'last_name', 'gender', 'class', 'program', 'registration_number', 'student_id', 'password'],
+    ['Ada', 'Chioma', 'Okafor', 'Female', 'JSS 1', '', 'REG/2026/001', '', ''],
+    ['Tunde', '', 'Bello', 'Male', 'JSS 1', '', 'REG/2026/002', '', '']
+  ]);
+}
+
+function bulkOptions() {
+  return {
+    default_class_id: document.getElementById('bulkDefaultClass').value || null,
+    default_program_id: document.getElementById('bulkDefaultProgram').value || null,
+    create_missing: document.getElementById('bulkCreateMissing').checked,
+    allow_duplicates: document.getElementById('bulkAllowDup').checked
+  };
+}
+
+async function checkBulk() {
+  hideAlert('bulkAlert');
+  const text = bulkSource === 'file' ? bulkText : document.getElementById('bulkPaste').value;
+  if (!text || !text.trim()) { showAlert('bulkAlert', 'Choose a file or paste your rows first.'); return; }
+
+  const table = parseDelimited(text);
+  if (table.length < 2) { showAlert('bulkAlert', 'No student rows found. The first row must be the column headings.'); return; }
+
+  const header = table[0].map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+  const idx = {};
+  for (const [field, names] of Object.entries(ALIASES)) {
+    const i = header.findIndex(h => names.includes(h));
+    if (i >= 0) idx[field] = i;
+  }
+  if (idx.firstname === undefined || idx.lastname === undefined) {
+    showAlert('bulkAlert', `Could not find a first_name column and a last_name column. Columns found: ${table[0].join(', ')}. Download the template to see the expected headings.`);
+    return;
+  }
+  const dataRows = table.slice(1);
+  if (dataRows.length > 2000) { showAlert('bulkAlert', 'Upload at most 2000 students at a time. Split the file.'); return; }
+
+  bulk.rows = dataRows.map((cells, i) => {
+    const o = { line: i + 1 };
+    for (const f of Object.keys(idx)) o[f] = (cells[idx[f]] ?? '').trim();
+    return o;
+  });
+  const used = Object.values(idx);
+  bulk.ignored = table[0].filter((h, i) => h.trim() && !used.includes(i));
+
+  const btn = document.getElementById('bulkCheckBtn');
+  btn.disabled = true; btn.textContent = 'Checking…';
+  try {
+    const r = await post('/api/students/import/validate', { rows: bulk.rows, options: bulkOptions() });
+    if (!r.ok) { showAlert('bulkAlert', errText(r, 'Could not check the file.')); return; }
+    bulk.validation = r.data.rows;
+    bulk.newClasses = r.data.new_classes || [];
+    bulk.newPrograms = r.data.new_programs || [];
+    renderPreview();
+    showStep(2);
+  } catch (err) {
+    showAlert('bulkAlert', 'Connection failed: ' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Check file';
+  }
+}
+
+function importable() {
+  const allowDup = bulkOptions().allow_duplicates;
+  return bulk.validation.filter(v => v.status === 'ok' || (v.status === 'duplicate' && allowDup));
+}
+
+function renderPreview() {
+  const count = (s) => bulk.validation.filter(v => v.status === s).length;
+  const ready = importable().length;
+  document.getElementById('bulkSummary').innerHTML = `
+    <div class="box"><strong>${bulk.validation.length}</strong>Rows read</div>
+    <div class="box"><strong style="color:var(--emerald-dark)">${count('ok')}</strong>Ready</div>
+    <div class="box"><strong style="color:#854D0E">${count('duplicate')}</strong>Possible duplicates</div>
+    <div class="box"><strong style="color:var(--danger)">${count('error')}</strong>Problems</div>`;
+
+  const notes = [];
+  if (bulk.newClasses.length) notes.push(`Will create ${bulk.newClasses.length} class(es): ${bulk.newClasses.map(esc).join(', ')}.`);
+  if (bulk.newPrograms.length) notes.push(`Will create ${bulk.newPrograms.length} program(s): ${bulk.newPrograms.map(esc).join(', ')}.`);
+  if (bulk.ignored.length) notes.push(`Ignored columns: ${bulk.ignored.map(esc).join(', ')}.`);
+  document.getElementById('bulkNotes').innerHTML = notes.length ? `<div class="sub" style="margin-bottom:10px;">${notes.join('<br>')}</div>` : '';
+
+  const rank = { error: 0, duplicate: 1, ok: 2 };
+  const shown = [...bulk.validation].sort((a, b) => rank[a.status] - rank[b.status] || a.index - b.index).slice(0, 300);
+  const rows = shown.map(v => {
+    const label = v.status === 'ok' ? '<span class="pill on">Ready</span>'
+      : v.status === 'duplicate' ? '<span class="pill dup">Possible duplicate</span>'
+      : '<span class="pill off">Problem</span>';
+    const notesText = [...v.errors, ...v.warnings].join(' ');
+    return `<tr><td>${v.index + 1}</td><td>${esc(v.name || '—')}</td>
+      <td>${esc([v.class_name, v.program_name].filter(Boolean).join(' / ') || '—')}</td>
+      <td class="mono">${esc(v.student_id || 'auto')}</td><td>${label}</td><td class="muted">${esc(notesText)}</td></tr>`;
+  }).join('');
+  document.getElementById('bulkPreview').innerHTML = `<table>
+    <thead><tr><th>Row</th><th>Name</th><th>Class / Program</th><th>ID</th><th>Status</th><th>Notes</th></tr></thead>
+    <tbody>${rows}</tbody></table>` +
+    (bulk.validation.length > 300 ? `<div class="muted" style="padding:10px;">Showing the first 300 (problems first). Everything is still checked.</div>` : '');
+
+  const btn = document.getElementById('bulkImportBtn');
+  btn.textContent = `Import ${ready} student${ready === 1 ? '' : 's'}`;
+  btn.disabled = ready === 0;
+}
+
+async function startImport() {
+  const options = bulkOptions();
+  const list = importable();
+  if (!list.length) return;
+
+  bulk.created = []; bulk.skipped = []; bulk.failed = []; bulk.stopped = '';
+  showStep(3);
+  document.getElementById('bulkProgressBox').style.display = 'block';
+  document.getElementById('bulkDone').style.display = 'none';
+  document.getElementById('bulkBar').style.width = '0%';
+
+  let sent = 0;
+  for (let i = 0; i < list.length; i += 25) {
+    const chunk = list.slice(i, i + 25).map(v => bulk.rows[v.index]);
+    let r;
+    try { r = await post('/api/students/import/commit', { rows: chunk, options }); }
+    catch (err) { bulk.stopped = 'Connection lost: ' + err.message; break; }
+    if (!r.ok) { bulk.stopped = errText(r, 'The import stopped unexpectedly.'); break; }
+
+    bulk.created.push(...r.data.created);
+    bulk.skipped.push(...r.data.skipped);
+    bulk.failed.push(...r.data.failed);
+    if (bulk.created.length) credentialsUnsaved = true;
+
+    sent += chunk.length;
+    document.getElementById('bulkBar').style.width = Math.round((sent / list.length) * 100) + '%';
+    document.getElementById('bulkProgressText').textContent = `Importing… ${sent} of ${list.length}`;
+  }
+  finishImport();
+}
+
+function problemRows() {
+  const out = [];
+  bulk.validation.filter(v => v.status === 'error').forEach(v => out.push([v.index + 1, v.name, v.errors.join(' ')]));
+  const allowDup = bulkOptions().allow_duplicates;
+  if (!allowDup) bulk.validation.filter(v => v.status === 'duplicate').forEach(v => out.push([v.index + 1, v.name, 'Skipped: ' + v.warnings.join(' ')]));
+  bulk.failed.forEach(f => out.push([f.line, (bulk.rows[f.line - 1] || {}).firstname || '', f.reason]));
+  bulk.skipped.forEach(f => out.push([f.line, (bulk.rows[f.line - 1] || {}).firstname || '', 'Skipped: ' + f.reason]));
+  if (bulk.stopped) out.push(['', '', 'Import stopped: ' + bulk.stopped]);
+  return out;
+}
+
+function finishImport() {
+  document.getElementById('bulkProgressBox').style.display = 'none';
+  document.getElementById('bulkDone').style.display = 'block';
+
+  lastCredentials = bulk.created.map(c => ({
+    name: [c.firstname, c.middlename, c.lastname].filter(Boolean).join(' '),
+    group: [c.class_name, c.program_name].filter(Boolean).join(' / '),
+    student_id: c.student_id, password: c.password,
+    firstname: c.firstname, middlename: c.middlename, lastname: c.lastname,
+    class_name: c.class_name, program_name: c.program_name
+  }));
+
+  const problems = problemRows();
+  document.getElementById('bulkDoneSummary').innerHTML = `
+    <div class="box"><strong style="color:var(--emerald-dark)">${bulk.created.length}</strong>Students created</div>
+    <div class="box"><strong>${problems.length}</strong>Rows not imported</div>`;
+  document.getElementById('bulkDoneWarn').textContent = bulk.stopped
+    ? `The import stopped early: ${bulk.stopped} The students created so far are saved. Download their logins now, then fix the rest and upload it again.`
+    : 'Passwords are stored encrypted and cannot be shown again. Download or print the logins now.';
+  document.getElementById('problemsBtn').style.display = problems.length ? 'inline-block' : 'none';
+}
+
+function downloadProblems() {
+  downloadCsv('students-not-imported.csv', [['Row', 'Name', 'Reason'], ...problemRows()]);
+}
+
+async function checkAdminSession() {
+  try {
+    const body = (await api('/api/auth/admin-me')).data;
+    if (!body.success) { window.location.href = '/admin-login'; return; }
+    loadAll();
+    api('/api/system/network-info').then(r => {
+      const a = r.data && r.data.addresses && r.data.addresses[0];
+      if (a) serverAddress = `http://${a.address}:${r.data.port}`;
+    }).catch(() => {});
+  } catch (err) {
+    window.location.href = '/admin-login';
+  }
+}
+checkAdminSession();
+</script>
+<script src="/sidebar.js"></script>
+<script src="/branding.js"></script>
+</body>
+</html>

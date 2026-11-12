@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee | Manage Exams</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+   /* html, body { margin: 0; height: 100%; overflow: hidden; } */
+
+    html, body {
+    height: auto;
+    min-height: 100vh;
+    margin: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  body { display: flex; height: 100vh; }
+
+  .sidebar {
+    width: 220px;
+    background: var(--navy);
+    color: white;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+  .topbar { background: var(--navy); color: white; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar .brand { display: flex; align-items: center; gap: 10px; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 18px; }
+  .nav-links { display: flex; gap: 18px; }
+  .nav-links a { color: #B9C6D6; text-decoration: none; font-size: 14px; }
+  .nav-links a:hover, .nav-links a.active { color: white; }
+
+  .content { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+  .page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .page-head h2 { font-size: 22px; }
+
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  th, td { text-align: left; padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--border); }
+  th { background: var(--bg); color: var(--text-muted); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+  td.title { font-weight: 600; }
+  .code-tag { font-family: monospace; font-size: 11px; color: var(--text-muted); }
+
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .pill.published { background: #ECFDF5; color: var(--emerald-dark); }
+  .pill.unpublished { background: var(--danger-bg); color: var(--danger); }
+  .pill.local { background: #FFF7ED; color: var(--orange-dark); margin-left: 6px; }
+  .pill.cloud { background: #EFF6FF; color: #1E40AF; margin-left: 6px; }
+
+  .row-actions { display: flex; gap: 8px; }
+  .row-actions button { padding: 6px 10px; font-size: 12px; }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 998; padding: 20px; }
+  .modal-backdrop.show { display: flex; }
+  .modal-box { background: white; border-radius: 16px; padding: 28px; max-width: 560px; width: 100%; max-height: 90vh; overflow-y: auto; }
+  .modal-box h3 { font-size: 18px; margin-bottom: 18px; }
+  .form-row { margin-bottom: 14px; }
+  .form-row label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 5px; }
+  .form-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .modal-actions button { flex: 1; }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 10px; }
+  .empty { text-align: center; color: var(--text-muted); padding: 60px 20px; }
+
+    .network-card {
+    background: linear-gradient(135deg, var(--navy-light) 0%, var(--navy) 100%);
+    color: white; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+  .network-card .label { font-size: 12px; color: #B9C6D6; text-transform: uppercase; letter-spacing: 0.5px; }
+  .network-card .url { font-family: monospace; font-size: 18px; font-weight: 700; margin-top: 4px; }
+  .network-card .copy-btn { background: rgba(255,255,255,0.15); color: white; border: none; padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+  .network-card .copy-btn:hover { background: rgba(255,255,255,0.25); }
+</style>
+</head>
+<body class="has-sidebar">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+
+<div id="sidebar-slot"></div>
+
+<div class="content">
+  <div id="networkCard"></div>
+
+  <div class="page-head">
+    <h2>Manage Exams</h2>
+    <button class="btn btn-primary" onclick="openCreateModal()">+ Create New Exam</button>
+  </div>
+  <div id="tableContainer"></div>
+</div>
+
+<div class="modal-backdrop" id="examModal">
+  <div class="modal-box">
+    <h3 id="modalTitle">Create Exam</h3>
+    <form id="examForm">
+      <input type="hidden" id="examId" />
+      <div class="form-row">
+        <label>Exam Title *</label>
+        <input class="input" id="exam_title" required />
+      </div>
+      <div class="form-row">
+        <label>Description</label>
+        <input class="input" id="description" />
+      </div>
+            <div class="form-row">
+        <label>Subject *</label>
+        <select class="input" id="subject_id" required></select>
+      </div>
+      <div class="form-two-col">
+        <div class="form-row">
+          <label>Class</label>
+          <select class="input" id="class_id"><option value="">— None —</option></select>
+        </div>
+        <div class="form-row">
+          <label>Program</label>
+          <select class="input" id="program_id"><option value="">— None —</option></select>
+        </div>
+      </div>
+      <div class="form-two-col">
+        <div class="form-row">
+          <label>Total Marks *</label>
+          <input class="input" type="number" id="total_marks" required />
+        </div>
+        <div class="form-row">
+          <label>Passing Marks *</label>
+          <input class="input" type="number" id="passing_marks" required />
+        </div>
+      </div>
+      <div class="form-two-col">
+        <div class="form-row">
+          <label>Duration (minutes) *</label>
+          <input class="input" type="number" id="duration_minutes" required />
+        </div>
+        <div class="form-row">
+          <label>Max Attempts</label>
+          <input class="input" type="number" id="max_attempts" value="1" />
+        </div>
+      </div>
+      <div class="form-two-col">
+        <div class="form-row">
+          <label>Start Time *</label>
+          <input class="input" type="datetime-local" id="start_time" required />
+        </div>
+        <div class="form-row">
+          <label>End Time *</label>
+          <input class="input" type="datetime-local" id="end_time" required />
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Show Result To Student</label>
+        <select class="input" id="show_result">
+          <option value="After Publish">After Publish</option>
+          <option value="Immediately">Immediately</option>
+          <option value="Never">Never</option>
+        </select>
+      </div>
+      <div class="form-row">
+  <label>Questions each candidate gets</label>
+  <input class="input" type="number" id="questions_to_attempt" min="1" step="1" placeholder="Leave blank to give every question" />
+  <div style="font-size:12px; color:var(--text-muted); margin-top:5px;">Use this when you upload more questions than a candidate should answer, for example 100 uploaded and 20 each. Tick “Shuffle Questions” below so every candidate gets a different random set.</div>
+</div>
+
+           <div class="checkbox-row"><input type="checkbox" id="shuffle_questions" /> <label style="margin:0">Shuffle Questions</label></div>
+      <div class="checkbox-row"><input type="checkbox" id="shuffle_options" /> <label style="margin:0">Shuffle Options</label></div>
+      <div class="checkbox-row"><input type="checkbox" id="is_global" /> <label style="margin:0">Global (visible to all classes/programs)</label></div>
+      <div class="checkbox-row"><input type="checkbox" id="published" /> <label style="margin:0">Published (visible to students)</label></div>
+
+      <div class="form-row" style="margin-top:20px; border-top:1px solid var(--border); padding-top:16px;">
+        <label style="font-size:12px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px;">Security Settings</label>
+      </div>
+      <div class="checkbox-row"><input type="checkbox" id="anti_cheat_enabled" /> <label style="margin:0">Enable Anti-Cheat (tab-switch detection, 3-strike auto-submit)</label></div>
+      <div class="checkbox-row"><input type="checkbox" id="require_camera" /> <label style="margin:0">Require Camera (proctoring — not yet enforced by the exam UI)</label></div>
+      <div class="form-row">
+        <label>IP Restriction (comma-separated, optional)</label>
+        <input class="input" id="ip_restriction" placeholder="e.g. 192.168.1.10, 192.168.1.11" />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveBtn">Save Exam</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin;
+let exams = [];
+let editingId = null;
+let subjectsCache = [], classesCache = [], programsCache = [];
+
+async function loadDropdownData() {
+  const [subjects, classes, programs] = await Promise.all([
+    fetch(`${API}/api/exams/meta/subjects`).then(r => r.json()),
+    fetch(`${API}/api/exams/meta/classes`).then(r => r.json()),
+    fetch(`${API}/api/exams/meta/programs`).then(r => r.json())
+  ]);
+  subjectsCache = subjects; classesCache = classes; programsCache = programs;
+
+  document.getElementById('subject_id').innerHTML =
+    '<option value="">— Select Subject —</option>' +
+    subjects.map(s => `<option value="${s.subject_id}">${escapeHtml(s.subject_name)}</option>`).join('');
+
+  document.getElementById('class_id').innerHTML =
+    '<option value="">— None —</option>' +
+    classes.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+
+  document.getElementById('program_id').innerHTML =
+    '<option value="">— None —</option>' +
+    programs.map(p => `<option value="${p.id}">${escapeHtml(p.program_name)}</option>`).join('');
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+function toDatetimeLocal(sqlDateTime) {
+  if (!sqlDateTime) return '';
+  return sqlDateTime.replace(' ', 'T').slice(0, 16);
+}
+function toSqlDateTime(datetimeLocal) {
+  return datetimeLocal.replace('T', ' ') + ':00';
+}
+
+async function loadNetworkInfo() {
+  try {
+    const res = await fetch(`${API}/api/system/network-info`);
+    const data = await res.json();
+    const container = document.getElementById('networkCard');
+
+    if (data.addresses.length === 0) {
+      container.innerHTML = `
+        <div class="network-card">
+          <div>
+            <div class="label">Student Computer Access</div>
+            <div class="url">No network connection detected</div>
+          </div>
+        </div>`;
+      return;
+    }
+
+    const cards = data.addresses.map(a => {
+      const url = `http://${a.address}:${data.port}`;
+      return `
+        <div class="network-card">
+          <div>
+            <div class="label">Student computers on this network should visit (${escapeHtml(a.interface)})</div>
+            <div class="url">${url}</div>
+          </div>
+          <button class="copy-btn" onclick="copyUrl('${url}', this)">Copy</button>
+        </div>`;
+    }).join('');
+
+    container.innerHTML = cards;
+  } catch (err) {
+    // Non-critical — don't block the page over this
+  }
+}
+
+function copyUrl(url, btn) {
+  navigator.clipboard.writeText(url).then(() => {
+    const original = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  });
+}
+
+async function loadExams() {
+  try {
+    const res = await fetch(`${API}/api/exams`);
+    exams = await res.json();
+    renderTable();
+  } catch (err) {
+    document.getElementById('tableContainer').innerHTML = `<div class="empty">Failed to load exams: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function renderTable() {
+  const container = document.getElementById('tableContainer');
+  if (exams.length === 0) {
+    container.innerHTML = `<div class="empty">No exams yet. Click "Create New Exam" or sync one from the cloud.</div>`;
+    return;
+  }
+
+  const rows = exams.map(exam => {
+    const isLocal = (exam.exam_code || '').startsWith('LOCAL-');
+    return `
+      <tr>
+        <td class="title">${escapeHtml(exam.exam_title)}<br><span class="code-tag">${escapeHtml(exam.exam_code)}</span></td>
+        <td>${exam.total_marks}</td>
+        <td>${exam.duration_minutes} min</td>
+        <td>
+          <span class="pill ${exam.published ? 'published' : 'unpublished'}">${exam.published ? 'Published' : 'Unpublished'}</span>
+          <span class="pill ${isLocal ? 'local' : 'cloud'}">${isLocal ? 'Local' : 'Cloud'}</span>
+        </td>
+        <td class="row-actions">
+          <button class="btn btn-ghost" onclick="editExam(${exam.id})">Edit</button>
+          <button class="btn btn-ghost" onclick="togglePublish(${exam.id}, ${exam.published})">${exam.published ? 'Unpublish' : 'Publish'}</button>
+          <button class="btn btn-ghost" onclick="manageQuestions('${exam.exam_code}')">Questions</button>
+          <button class="btn btn-ghost" style="color:var(--danger)" onclick="deleteExam(${exam.id})">Delete</button>
+        </td>
+      </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <table>
+      <thead><tr><th>Title / Code</th><th>Marks</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function openCreateModal() {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'Create Exam';
+  document.getElementById('examForm').reset();
+  document.getElementById('examModal').classList.add('show');
+}
+
+function editExam(id) {
+  const exam = exams.find(e => e.id === id);
+  if (!exam) return;
+  editingId = id;
+  document.getElementById('modalTitle').textContent = 'Edit Exam';
+  document.getElementById('exam_title').value = exam.exam_title || '';
+  document.getElementById('description').value = exam.description || '';
+  document.getElementById('subject_id').value = exam.subject_id || '';
+  document.getElementById('class_id').value = exam.class_id || '';
+  document.getElementById('program_id').value = exam.program_id || '';
+  document.getElementById('total_marks').value = exam.total_marks || '';
+  document.getElementById('passing_marks').value = exam.passing_marks || '';
+  document.getElementById('duration_minutes').value = exam.duration_minutes || '';
+  document.getElementById('max_attempts').value = exam.max_attempts || 1;
+  document.getElementById('start_time').value = toDatetimeLocal(exam.start_time);
+  document.getElementById('end_time').value = toDatetimeLocal(exam.end_time);
+  document.getElementById('show_result').value = exam.show_result || 'After Publish';
+  document.getElementById('shuffle_questions').checked = !!exam.shuffle_questions;
+  document.getElementById('questions_to_attempt').value = exam.questions_to_attempt || '';
+  document.getElementById('questions_to_attempt').value = exam.questions_to_attempt || '';
+  document.getElementById('shuffle_options').checked = !!exam.shuffle_options;
+  document.getElementById('is_global').checked = !!exam.is_global;
+    document.getElementById('published').checked = !!exam.published;
+  document.getElementById('anti_cheat_enabled').checked = !!exam.anti_cheat_enabled;
+  document.getElementById('require_camera').checked = !!exam.require_camera;
+  document.getElementById('ip_restriction').value = exam.ip_restriction || '';
+  document.getElementById('examModal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('examModal').classList.remove('show');
+}
+
+document.getElementById('examForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  const payload = {
+    exam_title: document.getElementById('exam_title').value,
+    description: document.getElementById('description').value,
+    subject_id: parseInt(document.getElementById('subject_id').value),
+    class_id: document.getElementById('class_id').value ? parseInt(document.getElementById('class_id').value) : null,
+    program_id: document.getElementById('program_id').value ? parseInt(document.getElementById('program_id').value) : null,
+    total_marks: parseInt(document.getElementById('total_marks').value),
+    passing_marks: parseInt(document.getElementById('passing_marks').value),
+    duration_minutes: parseInt(document.getElementById('duration_minutes').value),
+    max_attempts: parseInt(document.getElementById('max_attempts').value) || 1,
+    start_time: toSqlDateTime(document.getElementById('start_time').value),
+    end_time: toSqlDateTime(document.getElementById('end_time').value),
+    show_result: document.getElementById('show_result').value,
+    shuffle_questions: document.getElementById('shuffle_questions').checked ? 1 : 0,
+    questions_to_attempt: document.getElementById('questions_to_attempt').value ? parseInt(document.getElementById('questions_to_attempt').value, 10) : null,
+    questions_to_attempt: document.getElementById('questions_to_attempt').value ? parseInt(document.getElementById('questions_to_attempt').value, 10) : null,
+    shuffle_options: document.getElementById('shuffle_options').checked ? 1 : 0,
+    is_global: document.getElementById('is_global').checked ? 1 : 0,
+        published: document.getElementById('published').checked ? 1 : 0,
+    anti_cheat_enabled: document.getElementById('anti_cheat_enabled').checked ? 1 : 0,
+    require_camera: document.getElementById('require_camera').checked ? 1 : 0,
+    ip_restriction: document.getElementById('ip_restriction').value.trim() || null,
+    created_by: 'admin'
+  };
+
+  try {
+    const url = editingId ? `${API}/api/exams/${editingId}` : `${API}/api/exams`;
+    const method = editingId ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || 'Failed to save exam.');
+      btn.disabled = false; btn.textContent = 'Save Exam';
+      return;
+    }
+
+    closeModal();
+    await loadExams();
+  } catch (err) {
+    alert('Connection failed: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Exam';
+  }
+});
+
+async function togglePublish(id, currentlyPublished) {
+  try {
+    await fetch(`${API}/api/exams/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ published: currentlyPublished ? 0 : 1 })
+    });
+    await loadExams();
+  } catch (err) {
+    alert('Failed to update: ' + err.message);
+  }
+}
+
+async function deleteExam(id) {
+  if (!confirm('Delete this exam? This cannot be undone.')) return;
+  try {
+    await fetch(`${API}/api/exams/${id}`, { method: 'DELETE' });
+    await loadExams();
+  } catch (err) {
+    alert('Failed to delete: ' + err.message);
+  }
+}
+
+function manageQuestions(examCode) {
+  window.location.href = `/admin-questions?exam_code=${encodeURIComponent(examCode)}`;
+}
+async function checkAdminSession() {
+  try {
+    const res = await fetch(`${API}/api/auth/admin-me`);
+    const data = await res.json();
+    if (!data.success) { window.location.href = '/admin-login'; return; }
+        await loadDropdownData();
+    loadExams();
+    loadNetworkInfo();
+  } catch (err) {
+    window.location.href = '/admin-login';
+  }
+}
+checkAdminSession();
+</script>
+<script src="/sidebar.js"></script>
+
+<script src="/branding.js"></script>
+ </div>
+</body>
+</html>

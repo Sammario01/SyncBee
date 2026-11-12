@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Login</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="icon" type="image/png" href="/img/syncbee.png">
+<link rel="alternate icon" href="/favicon.ico">
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Eye Icon -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+
+<link rel="stylesheet" href="/style.css">
+
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(160deg, var(--navy) 0%, var(--navy-dark) 100%);
+    font-family: 'Manrope', sans-serif;
+    padding: 24px;
+    gap: 18px;
+  }
+
+  .card {
+    background: var(--card-bg, #ffffff);
+    border-radius: 20px;
+    padding: 44px 40px 36px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.28);
+  }
+
+  .logo-wrap {
+    display:flex;
+    justify-content:center;
+    margin-bottom:22px;
+  }
+
+  .logo-wrap img {
+    height:40px;
+    width:auto;
+    display:block;
+  }
+
+  h2 {
+    font-family:'Poppins',sans-serif;
+    font-size:21px;
+    text-align:center;
+    margin:0 0 6px;
+    color:var(--navy);
+  }
+
+  .sub {
+    text-align:center;
+    color:var(--text-muted);
+    font-size:14px;
+    margin-bottom:26px;
+    line-height:1.5;
+  }
+
+  label {
+    font-size:13px;
+    font-weight:600;
+    color:var(--text);
+    display:block;
+    margin-bottom:6px;
+    margin-top:16px;
+  }
+
+  .password-wrapper {
+    position:relative;
+  }
+
+  .password-wrapper .input {
+    padding-right:50px;
+  }
+
+  .password-toggle {
+    position:absolute;
+    right:15px;
+    top:50%;
+    transform:translateY(-50%);
+    border:none;
+    background:none;
+    cursor:pointer;
+    color:#777;
+    font-size:18px;
+    padding:0;
+  }
+
+  .password-toggle:hover {
+    color:#111;
+  }
+
+  .footer-note {
+    margin-top:26px;
+    font-size:12px;
+    color:var(--text-muted);
+    text-align:center;
+    line-height:1.5;
+  }
+
+  /* POWERED BY — outside the card */
+  .powered-by {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.65);
+    letter-spacing: 0.3px;
+    line-height: 1.5;
+    padding: 4px 0 8px;
+    font-family: 'Manrope', sans-serif;
+    flex-wrap: wrap;
+    text-align: center;
+  }
+
+  /* Mariobee logo beside the text */
+  .powered-by .company-logo {
+    height: 20px;
+    width: auto;
+    display: block;
+    opacity: 0.9;
+    filter: brightness(1.05);
+  }
+
+  .powered-by strong {
+    color: rgba(255,255,255,0.9);
+    font-weight: 600;
+  }
+
+  .powered-by .brand {
+    color: #f5c542; /* subtle bee-gold accent */
+    font-weight: 700;
+  }
+
+</style>
+
+</head>
+
+<body>
+
+<div class="card">
+
+<div class="logo-wrap">
+  <img id="brandLogo" data-brand-logo
+       src="./img/syncbee2.png"
+       onerror="this.onerror=null; this.src='./img/syncbee2.png';"
+       alt="SyncBee Logo">
+</div>
+
+
+
+  <h2>User Login</h2>
+
+  <div class="sub">
+    Enter your Student ID and password to begin.
+  </div>
+
+
+  <div id="alertBox" class="alert alert-error"></div>
+
+
+  <form id="loginForm">
+
+    <label for="username">LOGIN ID</label>
+
+    <input 
+      class="input"
+      type="text"
+      id="username"
+      placeholder="Enter Student ID"
+      autocomplete="username"
+      autofocus
+      required
+    />
+
+
+    <label for="password">Password</label>
+
+    <div class="password-wrapper">
+
+      <input
+        class="input"
+        type="password"
+        id="password"
+        placeholder="Enter password"
+        autocomplete="current-password"
+        required
+      />
+
+      <button
+        type="button"
+        id="togglePassword"
+        class="password-toggle"
+        aria-label="Show Password"
+      >
+        <i class="fa-regular fa-eye"></i>
+      </button>
+
+    </div>
+
+
+    <button 
+      type="submit"
+      class="btn btn-primary"
+      id="loginBtn"
+      style="width:100%; margin-top:24px;"
+    >
+      Log In
+    </button>
+
+
+  </form>
+
+
+  <div class="footer-note">
+    Having trouble logging in? See your exam supervisor.
+  </div>
+
+
+</div>
+
+
+<!-- POWERED BY — sits outside the card, with Mariobee logo -->
+<div class="powered-by">
+  <img src="img/mariobee.png" alt="Mariobee Technologies" class="company-logo">
+  <span>Powered by <strong class="brand">SyncBee</strong> · <strong>Mariobee Technologies Limited</strong></span>
+</div>
+<script src="/branding.js"></script>
+<script>
+// ── Branding: load custom logo set in Settings → Branding ──────────
+(async function loadBrandLogo() {
+  const img = document.getElementById('brandLogo');
+  if (!img) return;
+
+  // Where to cache the last known good logo so login is instant on reload
+  const CACHE_KEY = 'syncbee_brand_logo';
+  const cached = localStorage.getItem(CACHE_KEY);
+  if (cached) img.src = cached;
+
+  try {
+    const res = await fetch('/api/admin/branding/public', {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+    if (!res.ok) return;
+
+    const data = await res.json();
+
+    // Accept several common shapes the backend might return:
+    //   { logo_url: "..." }
+    //   { logo: "..." }
+    //   { logo_data: "data:image/png;base64,..." }
+    //   { branding: { logo_url: "..." } }
+    const logo =
+      data.logo_url ||
+      data.logo ||
+      data.logo_data ||
+      (data.branding && (data.branding.logo_url || data.branding.logo));
+
+    if (!logo) return;
+
+    // Only update if it's actually different
+    if (img.getAttribute('src') !== logo) {
+      img.src = logo;
+      localStorage.setItem(CACHE_KEY, logo);
+    }
+
+    // If the custom logo fails to load, fall back to the default
+    img.onerror = () => {
+      img.onerror = null;
+      img.src = './img/syncbee2.png';
+      localStorage.removeItem(CACHE_KEY);
+    };
+
+  } catch (_) {
+    // Network error — keep whatever we already have (cache or default)
+  }
+})();
+</script>
+<script>
+
+const API = window.location.origin;
+
+
+// Remember last Student ID
+const savedUsername = localStorage.getItem('syncbee_student_id');
+
+if(savedUsername){
+  document.getElementById('username').value = savedUsername;
+}
+
+
+
+// Password show / hide
+
+const passwordInput = document.getElementById('password');
+const togglePassword = document.getElementById('togglePassword');
+const icon = togglePassword.querySelector('i');
+
+
+togglePassword.addEventListener('click',()=>{
+
+  const hidden = passwordInput.type === 'password';
+
+  passwordInput.type = hidden ? 'text' : 'password';
+
+  icon.classList.toggle('fa-eye');
+  icon.classList.toggle('fa-eye-slash');
+
+});
+
+
+
+
+// Device ID
+
+function getDeviceId() {
+
+  try {
+
+    let id = localStorage.getItem('syncbee_device_id');
+
+    if(!id){
+
+      const bytes = new Uint8Array(16);
+
+      crypto.getRandomValues(bytes);
+
+      id = 'DEV-' + Array.from(
+        bytes,
+        b => b.toString(16).padStart(2,'0')
+      ).join('');
+
+      localStorage.setItem('syncbee_device_id',id);
+
+    }
+
+    return id;
+
+  } catch(e){
+
+    return null;
+
+  }
+
+}
+
+
+
+
+
+document.getElementById('loginForm')
+.addEventListener('submit',async(e)=>{
+
+  e.preventDefault();
+
+
+  const username =
+    document.getElementById('username')
+    .value.trim();
+
+
+  const password =
+    document.getElementById('password')
+    .value.trim();
+
+
+  const btn =
+    document.getElementById('loginBtn');
+
+
+  const alertBox =
+    document.getElementById('alertBox');
+
+
+  alertBox.classList.remove('show');
+
+
+  btn.disabled=true;
+
+  btn.textContent='Logging in...';
+
+
+
+  try {
+
+
+    const res = await fetch(`${API}/api/auth/login`,{
+
+      method:'POST',
+
+      headers:{
+        'Content-Type':'application/json'
+      },
+
+      body:JSON.stringify({
+
+        username,
+
+        password,
+
+        device_id:getDeviceId()
+
+      })
+
+    });
+
+
+
+    const data = await res.json();
+
+
+
+    if(data.success){
+
+
+      // Save Student ID
+
+      localStorage.setItem(
+        'syncbee_student_id',
+        username
+      );
+
+
+      window.location.href='/dashboard';
+
+
+
+    }else{
+
+
+      alertBox.textContent =
+      data.message || 'Login failed.';
+
+
+      alertBox.classList.add('show');
+
+
+      btn.disabled=false;
+
+      btn.textContent='Log In';
+
+
+    }
+
+
+
+  }catch(err){
+
+
+    alertBox.textContent =
+    'Connection failed: ' + err.message;
+
+
+    alertBox.classList.add('show');
+
+
+    btn.disabled=false;
+
+    btn.textContent='Log In';
+
+
+  }
+
+
+});
+
+
+</script>
+
+
+</body>
+</html>

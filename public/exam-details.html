@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Exam Details</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+    html, body {
+    height: auto;
+    min-height: 100vh;
+    margin: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .topbar { position: sticky; top: 0; z-index: 10; }
+  .topbar { background: var(--navy); color: white; padding: 16px 32px; display: flex; align-items: center; gap: 16px; }
+  .topbar .brand { display: flex; align-items: center; gap: 10px; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 18px; }
+  .back-link { color: #B9C6D6; text-decoration: none; font-size: 14px; }
+  .back-link:hover { color: white; }
+
+  .content { max-width: 800px; margin: 40px auto; padding: 0 20px; }
+  .exam-card { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 10px rgba(15,38,71,0.08); }
+  .exam-head { background: linear-gradient(135deg, var(--navy-light) 0%, var(--navy) 100%); color: white; padding: 28px 32px; }
+  .exam-head h1 { font-size: 22px; margin-bottom: 6px; }
+  .exam-head p { color: #B9C6D6; font-size: 14px; }
+
+  .exam-body { padding: 28px 32px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+  .box { background: var(--bg); border-radius: 12px; padding: 16px 18px; }
+  .box h3 { font-size: 13px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; letter-spacing: 0.5px; }
+  .box ul { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.8; }
+  .box kbd { background: white; border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-size: 12px; }
+
+  .meta-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .meta-row:last-child { border-bottom: none; }
+  .meta-row span:first-child { color: var(--text-muted); }
+  .meta-row span:last-child { font-weight: 600; }
+
+  .status-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    margin: 24px 0; padding: 14px 18px; border-radius: 10px; background: var(--bg);
+    font-size: 14px; font-weight: 600;
+  }
+  .status-success { color: var(--emerald-dark); }
+  .status-warning { color: var(--orange-dark); }
+  .status-danger { color: var(--danger); }
+  .status-info { color: #1E40AF; }
+  .status-muted { color: var(--text-muted); }
+  .status-primary { color: var(--navy); }
+
+  .reason-box { background: var(--danger-bg); color: var(--danger); padding: 14px 18px; border-radius: 10px; text-align: center; font-size: 14px; }
+  .action { text-align: center; margin-top: 8px; }
+  .loading { text-align: center; padding: 80px 20px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <svg width="24" height="24" viewBox="0 0 100 100"><polygon points="50,3 93,26 93,74 50,97 7,74 7,26" fill="#F5941F"/><text x="50" y="66" font-family="Poppins, sans-serif" font-weight="700" font-size="48" fill="#0F2647" text-anchor="middle">S</text></svg>
+    SyncBee
+  </div>
+  <a href="/dashboard" class="back-link">← Back to Exams</a>
+</div>
+
+<div class="content" id="content">
+  <div class="loading">Loading exam details...</div>
+</div>
+
+<script>
+const API = window.location.origin;
+const params = new URLSearchParams(window.location.search);
+const examCode = params.get('exam_code');
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+async function load() {
+  if (!examCode) {
+    document.getElementById('content').innerHTML = `<div class="reason-box">No exam specified.</div>`;
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/student/exam-details?exam_code=${encodeURIComponent(examCode)}`);
+    const data = await res.json();
+
+    if (!data.success) {
+      document.getElementById('content').innerHTML = `<div class="reason-box">${escapeHtml(data.message)}</div>`;
+      return;
+    }
+
+    render(data);
+  } catch (err) {
+    document.getElementById('content').innerHTML = `<div class="reason-box">Connection failed: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function render(data) {
+  const { exam, has_theory, section_to_check, status_text, status_class, button_disabled, reason_message } = data;
+
+  const buttonLabel = section_to_check === 'B' ? 'Start Section B (Theory)' : 'Start Exam';
+
+  const actionHtml = !button_disabled
+    ? `<button class="btn btn-primary" onclick="startExam()">▶ ${buttonLabel}</button>`
+    : `<div class="reason-box">${escapeHtml(reason_message)}</div>`;
+
+  document.getElementById('content').innerHTML = `
+    <div class="exam-card">
+      <div class="exam-head">
+        <h1>${escapeHtml(exam.exam_title)}</h1>
+        <p>${escapeHtml(exam.description || '')}</p>
+      </div>
+      <div class="exam-body">
+        <div class="two-col">
+          <div class="box">
+            <h3>Instructions</h3>
+            <ul>
+              <li>${exam.duration_minutes} minutes duration (auto-submit)</li>
+              <li>${exam.max_attempts} attempt(s) allowed</li>
+              <li>Do not refresh or navigate away</li>
+              ${has_theory ? '<li>Section A must be completed before Section B</li>' : ''}
+            </ul>
+          </div>
+          <div class="box">
+            <h3>Keyboard Shortcuts</h3>
+            <ul style="list-style:none; padding-left:0;">
+              <li><kbd>A</kbd> <kbd>B</kbd> <kbd>C</kbd> <kbd>D</kbd> Select option</li>
+              <li><kbd>→</kbd>/<kbd>N</kbd> Next</li>
+              <li><kbd>←</kbd>/<kbd>P</kbd> Previous</li>
+              <li><kbd>Enter</kbd> Submit</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="meta-row"><span>Total Marks</span><span>${exam.total_marks}</span></div>
+        <div class="meta-row"><span>Passing Marks</span><span>${exam.passing_marks}</span></div>
+        <div class="meta-row"><span>Duration</span><span>${exam.duration_minutes} mins</span></div>
+        <div class="meta-row"><span>Attempts Allowed</span><span>${exam.max_attempts}</span></div>
+
+        <div class="status-bar">
+          <span class="status-${status_class}">⏱ ${escapeHtml(status_text)}</span>
+          <span>Total Questions: <strong>${exam.total_questions}</strong></span>
+        </div>
+
+        <div class="action">${actionHtml}</div>
+      </div>
+    </div>
+  `;
+
+  window._sectionToStart = section_to_check;
+  window._examId = exam.id;
+}
+
+async function startExam() {
+  try {
+    const res = await fetch(`${API}/api/attempts/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ exam_code: examCode, exam_id: window._examId, section: window._sectionToStart })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || 'Could not start exam.');
+      return;
+    }
+
+    window.location.href = `/exam-taking?attempt_id=${encodeURIComponent(data.attempt_id)}&section=${data.section}`;
+  } catch (err) {
+    alert('Connection failed: ' + err.message);
+  }
+}
+
+load();
+</script>
+
+</body>
+</html>

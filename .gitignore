@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.cache/
+
+# Private keys — NEVER commit
+build/keys/
+**/*.pem
+**/*.key
+
+# Backups & local data
+backups/
+uploads/
+db/*.db
+db/*.db-shm
+db/*.db-wal
+package.json.backup
+main/main.js.backup
+main/integrity.js.backup
+.gitignore.backup
+
+# Logs & OS junk
+*.log
+.DS_Store
+Thumbs.db
+
+# VS Code (keep settings.json, ignore the rest)
+.vscode/*
+!.vscode/settings.json
+
+# Env files
+.env
+.env.*

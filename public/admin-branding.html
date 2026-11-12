@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Branding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .topbar { background: var(--navy); color: white; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar .brand { display: flex; align-items: center; gap: 10px; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 18px; }
+  .nav-links { display: flex; gap: 14px; flex-wrap: wrap; }
+  .nav-links a { color: #B9C6D6; text-decoration: none; font-size: 13px; }
+  .nav-links a:hover, .nav-links a.active { color: white; }
+
+  .content { max-width: 620px; margin: 0 auto; padding: 32px 24px; }
+  .card { background: white; border-radius: 14px; padding: 26px 28px; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  h2 { font-size: 20px; margin-bottom: 4px; }
+  .sub { color: var(--text-muted); font-size: 13px; margin-bottom: 24px; }
+
+  .form-row { margin-bottom: 18px; }
+  .form-row label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px; }
+
+  .logo-preview { width: 60px; height: 60px; border-radius: 10px; border: 1.5px dashed var(--border); display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 10px; }
+  .logo-preview img { width: 100%; height: 100%; object-fit: contain; }
+
+  .color-row { display: flex; gap: 16px; }
+  .color-item { flex: 1; text-align: center; }
+  .color-item label { margin-bottom: 8px; }
+  .color-item input[type=color] { width: 100%; height: 44px; border: 1.5px solid var(--border); border-radius: 8px; cursor: pointer; }
+
+  .fixed-note { background: var(--bg); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: var(--text-muted); margin-top: 20px; }
+</style>
+</head>
+<body class="has-sidebar">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+
+<div id="sidebar-slot"></div>
+
+<div class="content">
+  <div class="card">
+    <h2>Branding</h2>
+    <div class="sub">Customize how this installation looks for your school.</div>
+
+    <form id="brandingForm">
+      <div class="form-row">
+        <label>Logo</label>
+        <div class="logo-preview" id="logoPreview">No logo</div>
+        <input type="file" id="logoFile" accept="image/*" />
+      </div>
+
+      <div class="form-row">
+        <label>Display Name (replaces "SyncBee" across the app)</label>
+        <input class="input" id="schoolDisplayName" placeholder="e.g. Greenfield Academy" />
+      </div>
+
+      <div class="form-row">
+        <label>Colors</label>
+        <div class="color-row">
+          <div class="color-item"><label>Primary</label><input type="color" id="colorPrimary" value="#0F2647" /></div>
+          <div class="color-item"><label>Accent</label><input type="color" id="colorAccent" value="#F5941F" /></div>
+          <div class="color-item"><label>Success</label><input type="color" id="colorSuccess" value="#0E9F6E" /></div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" id="saveBtn" style="width:100%;">Save Branding</button>
+    </form>
+
+    <div class="fixed-note">"Powered by Mariobee Technologies" always appears in the corner of every screen — this isn't editable here.</div>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin;
+let logoDataUri = null;
+
+async function loadCurrent() {
+  try {
+    const res = await fetch(`${API}/api/branding`);
+    const data = await res.json();
+    if (data.school_display_name) document.getElementById('schoolDisplayName').value = data.school_display_name;
+    if (data.color_primary) document.getElementById('colorPrimary').value = data.color_primary;
+    if (data.color_accent) document.getElementById('colorAccent').value = data.color_accent;
+    if (data.color_success) document.getElementById('colorSuccess').value = data.color_success;
+    if (data.logo_data_uri) {
+      logoDataUri = data.logo_data_uri;
+      document.getElementById('logoPreview').innerHTML = `<img src="${data.logo_data_uri}" />`;
+    }
+  } catch (e) { /* defaults are fine */ }
+}
+
+document.getElementById('logoFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    logoDataUri = reader.result;
+    document.getElementById('logoPreview').innerHTML = `<img src="${logoDataUri}" />`;
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('brandingForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  try {
+    await fetch(`${API}/api/branding`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        school_display_name: document.getElementById('schoolDisplayName').value.trim(),
+        logo_data_uri: logoDataUri,
+        color_primary: document.getElementById('colorPrimary').value,
+        color_accent: document.getElementById('colorAccent').value,
+        color_success: document.getElementById('colorSuccess').value
+      })
+    });
+    alert('Branding saved! Reload any open page to see it applied.');
+  } catch (err) {
+    alert('Failed to save: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Branding';
+  }
+});
+
+async function checkAdminSession() {
+  try {
+    const res = await fetch(`${API}/api/auth/admin-me`);
+    const data = await res.json();
+    if (!data.success) { window.location.href = '/admin-login'; return; }
+    loadCurrent();
+  } catch (err) {
+    window.location.href = '/admin-login';
+  }
+}
+checkAdminSession();
+</script>
+
+<script src="/sidebar.js"></script>
+
+<script src="/branding.js"></script>
+ </div>
+</body>
+</html>

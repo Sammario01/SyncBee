@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Bulk Upload Questions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .content { max-width: 1000px; margin: 0 auto; padding: 28px 24px 70px; }
+  .back-link { color: var(--text-muted); text-decoration: none; font-size: 13px; }
+  .back-link:hover { color: var(--navy); }
+  h2.title { font-size: 22px; margin: 8px 0 2px; }
+  .sub { color: var(--text-muted); font-size: 13px; margin-bottom: 18px; }
+  .card { background: white; border-radius: 14px; padding: 18px 22px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  .card h3 { font-size: 15px; margin-bottom: 6px; }
+  .hint { color: var(--text-muted); font-size: 13px; line-height: 1.55; margin-bottom: 12px; }
+  .muted { color: var(--text-muted); font-size: 12px; }
+  textarea.paste { width: 100%; margin-top: 10px; font-family: monospace; font-size: 12px; resize: vertical; }
+  .drop { border: 2px dashed var(--border); border-radius: 12px; padding: 18px; text-align: center; font-size: 13px; color: var(--text-muted); }
+  .drop.over { border-color: var(--orange); background: #FFF7ED; }
+  .drop .btn { margin: 0 4px; }
+  .options-row { display: flex; gap: 22px; flex-wrap: wrap; align-items: center; font-size: 13px; }
+  .options-row label.check { display: flex; gap: 7px; align-items: center; cursor: pointer; }
+  .options-row input[type=number] { width: 70px; }
+  .actions { display: flex; gap: 10px; margin-top: 14px; align-items: center; flex-wrap: wrap; }
+  .summary { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .summary .box { background: var(--bg); border-radius: 10px; padding: 8px 14px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+  .summary .box strong { display: block; font-size: 21px; color: var(--navy); text-transform: none; }
+  .note { background: #EFF6FF; color: #1E40AF; border-radius: 10px; padding: 9px 14px; font-size: 13px; margin-bottom: 8px; line-height: 1.5; }
+  .note.warn { background: #FFF7ED; color: var(--orange-dark); }
+  .preview-wrap { max-height: 420px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 12px; font-size: 12.5px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--bg); color: var(--text-muted); text-transform: uppercase; font-size: 11px; position: sticky; top: 0; }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .pill.ok { background: #ECFDF5; color: var(--emerald-dark); }
+  .pill.duplicate { background: #FEF9C3; color: #854D0E; }
+  .pill.error { background: var(--danger-bg); color: var(--danger); }
+  .bar-outer { background: var(--bg); border-radius: 20px; height: 12px; overflow: hidden; margin: 12px 0 6px; }
+  .bar-inner { height: 100%; background: var(--emerald); width: 0; transition: width .2s ease; }
+  .big { font-size: 18px; font-weight: 700; color: var(--navy); }
+  .err-list { font-size: 12.5px; color: var(--text-muted); margin-top: 8px; line-height: 1.6; }
+  .alert-box { display: none; background: var(--danger-bg); color: var(--danger); border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
+  .alert-box.show { display: block; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body class="has-sidebar">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+    <div class="content">
+      <a class="back-link" id="backLink" href="/admin-exams">&larr; Back to Question Builder</a>
+      <h2 class="title">Bulk Upload Questions</h2>
+      <div class="sub" id="examSub">Loading exam…</div>
+      <div class="alert-box" id="alertBox"></div>
+
+      <div id="setup">
+        <div class="card">
+          <h3>1. Your questions</h3>
+          <div class="hint">Upload an Excel (.xlsx) or CSV file, or paste the rows you copied from Excel. The first row must be the column headings.
+            <a href="/api/question-import/template.xlsx">Download the Excel template</a> &middot; <a href="/api/question-import/template.csv">CSV template</a></div>
+          <input type="file" id="dataFile" accept=".xlsx,.csv,.tsv,.txt">
+          <div class="muted" id="dataInfo"></div>
+          <textarea class="paste input" id="pasteBox" rows="5" placeholder="…or paste rows from Excel here (include the heading row)"></textarea>
+        </div>
+
+        <div class="card">
+          <h3>2. Pictures (optional)</h3>
+          <div class="hint">Write each picture's file name in the <strong>Image</strong> columns of the sheet (for example <code>heart.png</code>), then select the picture files here. Choose many at once, or a whole folder. They are matched by file name.</div>
+          <div class="drop" id="dropZone">
+            Drop pictures here, or
+            <button type="button" class="btn btn-ghost" id="pickImages">Choose pictures</button>
+            <button type="button" class="btn btn-ghost" id="pickFolder">Choose a folder</button>
+            <button type="button" class="btn btn-ghost" id="clearImages" hidden>Clear</button>
+          </div>
+          <input type="file" id="imgInput" multiple accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+          <input type="file" id="folderInput" webkitdirectory multiple hidden>
+          <div class="muted" id="imgInfo" style="margin-top:8px;"></div>
+        </div>
+
+        <div class="card">
+          <h3>3. Options</h3>
+          <div class="options-row">
+            <label>Marks when the sheet leaves it blank: <input class="input" type="number" id="defaultMarks" value="1" min="0.5" step="0.5"></label>
+            <label class="check"><input type="checkbox" id="allowHtml"> My text contains HTML (don't escape it)</label>
+            <label class="check"><input type="checkbox" id="allowDup"> Import possible duplicates too</label>
+          </div>
+          <div class="actions"><button type="button" class="btn btn-primary" id="checkBtn">Check file</button></div>
+        </div>
+      </div>
+
+      <div class="card" id="previewCard" hidden>
+        <h3>Check before importing</h3>
+        <div class="summary" id="summary"></div>
+        <div id="notes"></div>
+        <div class="preview-wrap" id="preview"></div>
+        <div class="actions">
+          <button type="button" class="btn btn-ghost" id="backBtn">&larr; Change file</button>
+          <button type="button" class="btn btn-primary" id="importBtn"></button>
+        </div>
+      </div>
+
+      <div class="card" id="progressCard" hidden>
+        <h3>Importing…</h3>
+        <div class="bar-outer"><div class="bar-inner" id="bar"></div></div>
+        <div class="muted" id="progressText"></div>
+        <div class="note warn" style="margin-top:12px;">Keep this page open until the import finishes.</div>
+      </div>
+
+      <div class="card" id="doneCard" hidden>
+        <h3>Import finished</h3>
+        <div class="summary" id="doneSummary"></div>
+        <div class="err-list" id="doneErrors"></div>
+        <div class="actions">
+          <a class="btn btn-primary" id="doneBack" href="/admin-exams">Back to Question Builder</a>
+          <button type="button" class="btn btn-ghost" id="problemsBtn" hidden>Download rows not imported</button>
+          <button type="button" class="btn btn-ghost" id="againBtn">Upload another file</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const API = window.location.origin;
+const params = new URLSearchParams(window.location.search);
+const examCode = params.get('exam_code') || '';
+const SHEET_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const IMG_MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp' };
+const CHUNK = 50;
+const MAX_IMG = 8 * 1024 * 1024;
+
+let dataBytes = null, dataType = 'text/plain';
+const images = new Map();          // lower-case file name -> File
+let imageNotes = { skipped: 0, duplicates: 0, tooBig: [] };
+let parsedRows = [];               // rows read from the sheet
+let results = [];                  // one checked result per row
+let ignoredColumns = [];
+let importing = false;
+let finalReport = { created: 0, skipped: [], failed: [] };
+
+const $ = (id) => document.getElementById(id);
+function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+function showAlert(text) { const a = $('alertBox'); a.textContent = text; a.classList.add('show'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function hideAlert() { $('alertBox').classList.remove('show'); }
+function show(id, yes) { $(id).hidden = !yes; }
+function mb(n) { return (n / (1024 * 1024)).toFixed(1) + ' MB'; }
+
+async function api(path, options) {
+  const res = await fetch(API + path, options);
+  if (res.status === 401) { window.location.href = '/admin-login'; throw new Error('Not logged in'); }
+  let body = {};
+  try { body = await res.json(); } catch (e) { /* no body */ }
+  return { ok: res.ok, status: res.status, body };
+}
+const postJson = (path, body) => api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+function readFile(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(new Uint8Array(fr.result));
+    fr.onerror = () => reject(new Error('The file could not be read.'));
+    fr.readAsArrayBuffer(file);
+  });
+}
+
+// ───────── 1. the sheet ─────────
+$('dataFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) { showAlert('That file is larger than 10 MB. Split it into smaller files.'); e.target.value = ''; return; }
+  hideAlert();
+  try { dataBytes = await readFile(file); } catch (err) { showAlert(err.message); return; }
+  dataType = /\.xlsx$/i.test(file.name) ? SHEET_MIME : 'text/plain';
+  $('pasteBox').value = '';
+  $('dataInfo').textContent = `${file.name} (${mb(file.size)})`;
+});
+$('pasteBox').addEventListener('input', () => {
+  const text = $('pasteBox').value;
+  dataBytes = text.trim() ? new TextEncoder().encode(text) : null;
+  dataType = 'text/plain';
+  $('dataFile').value = '';
+  $('dataInfo').textContent = text.trim() ? `Pasted text (${text.length.toLocaleString()} characters)` : '';
+});
+
+// ───────── 2. pictures ─────────
+function extOf(name) { const m = /\.([a-z0-9]+)$/i.exec(name); return m ? m[1].toLowerCase() : ''; }
+function typeOfFile(f) { return f.type || IMG_MIME[extOf(f.name)] || ''; }
+function addImages(fileList) {
+  for (const f of Array.from(fileList || [])) {
+    const type = typeOfFile(f);
+    if (!Object.values(IMG_MIME).includes(type)) { imageNotes.skipped++; continue; }
+    if (f.size > MAX_IMG) { imageNotes.tooBig.push(f.name); continue; }
+    const key = f.name.toLowerCase();
+    if (images.has(key)) { imageNotes.duplicates++; continue; }
+    images.set(key, f);
+  }
+  renderImages();
+}
+function renderImages() {
+  const total = Array.from(images.values()).reduce((n, f) => n + f.size, 0);
+  const parts = [];
+  if (images.size) parts.push(`${images.size} picture${images.size === 1 ? '' : 's'} selected (${mb(total)})`);
+  if (imageNotes.skipped) parts.push(`${imageNotes.skipped} file(s) skipped: not PNG, JPG, GIF or WebP`);
+  if (imageNotes.tooBig.length) parts.push(`${imageNotes.tooBig.length} larger than 8 MB and skipped: ${imageNotes.tooBig.slice(0, 3).join(', ')}${imageNotes.tooBig.length > 3 ? '…' : ''}`);
+  if (imageNotes.duplicates) parts.push(`${imageNotes.duplicates} with a repeated file name ignored`);
+  $('imgInfo').textContent = parts.join(' · ');
+  $('clearImages').hidden = images.size === 0;
+}
+$('pickImages').addEventListener('click', () => $('imgInput').click());
+$('pickFolder').addEventListener('click', () => $('folderInput').click());
+$('imgInput').addEventListener('change', (e) => { addImages(e.target.files); e.target.value = ''; });
+$('folderInput').addEventListener('change', (e) => { addImages(e.target.files); e.target.value = ''; });
+$('clearImages').addEventListener('click', () => { images.clear(); imageNotes = { skipped: 0, duplicates: 0, tooBig: [] }; renderImages(); });
+['dragenter', 'dragover'].forEach(ev => $('dropZone').addEventListener(ev, (e) => { e.preventDefault(); $('dropZone').classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => $('dropZone').addEventListener(ev, (e) => { e.preventDefault(); $('dropZone').classList.remove('over'); }));
+$('dropZone').addEventListener('drop', (e) => addImages(e.dataTransfer && e.dataTransfer.files));
+
+// ───────── 3. check ─────────
+function currentOptions() {
+  return {
+    default_marks: parseFloat($('defaultMarks').value) || 1,
+    allow_html: $('allowHtml').checked,
+    allow_duplicates: $('allowDup').checked
+  };
+}
+function imageMeta() {
+  return Array.from(images.values()).map(f => ({ name: f.name, size: f.size, type: typeOfFile(f) }));
+}
+
+async function checkFile() {
+  hideAlert();
+  if (!examCode) { showAlert('No exam was chosen. Open this page from the Question Builder.'); return; }
+  if (!dataBytes) { showAlert('Choose a file, or paste your rows first.'); return; }
+  const btn = $('checkBtn');
+  btn.disabled = true; btn.textContent = 'Checking…';
+  try {
+    const p = await api('/api/question-import/parse', { method: 'POST', headers: { 'Content-Type': dataType }, body: dataBytes });
+    if (!p.ok) { showAlert(p.body.error || 'The file could not be read.'); return; }
+    parsedRows = p.body.rows;
+    ignoredColumns = p.body.ignored_columns || [];
+
+    results = [];
+    for (let i = 0; i < parsedRows.length; i += CHUNK) {
+      const v = await postJson('/api/question-import/validate', Object.assign({
+        exam_code: examCode, rows: parsedRows.slice(i, i + CHUNK), images: imageMeta()
+      }, currentOptions()));
+      if (!v.ok) { showAlert(v.body.error || 'The file could not be checked.'); return; }
+      results.push(...v.body.rows);
+    }
+    // the server checks 50 rows at a time, so repeats ACROSS batches are caught here
+    const seen = new Set();
+    results.forEach(r => {
+      if (!r.file_key) return;
+      if (seen.has(r.file_key) && r.status === 'ok') { r.status = 'duplicate'; r.warnings.push('The same question appears earlier in this file.'); }
+      seen.add(r.file_key);
+    });
+    renderPreview();
+    show('setup', false); show('previewCard', true);
+  } catch (err) {
+    showAlert('Connection failed: ' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Check file';
+  }
+}
+$('checkBtn').addEventListener('click', checkFile);
+$('backBtn').addEventListener('click', () => { show('previewCard', false); show('setup', true); });
+
+function importable() {
+  const dup = $('allowDup').checked;
+  return results.map((r, i) => ({ r, i })).filter(x => x.r.status === 'ok' || (x.r.status === 'duplicate' && dup));
+}
+
+const TYPE_LABEL = { MCQ_SINGLE: 'Multiple choice', TRUE_FALSE: 'True / False', THEORY: 'Theory' };
+function renderPreview() {
+  const count = (s) => results.filter(r => r.status === s).length;
+  const ready = importable().length;
+  $('summary').innerHTML = `
+    <div class="box"><strong>${results.length}</strong>Rows read</div>
+    <div class="box"><strong style="color:var(--emerald-dark)">${count('ok')}</strong>Ready</div>
+    <div class="box"><strong style="color:#854D0E">${count('duplicate')}</strong>Possible duplicates</div>
+    <div class="box"><strong style="color:var(--danger)">${count('error')}</strong>Problems</div>`;
+
+  const used = new Set();
+  results.forEach(r => (r.uploads || []).forEach(k => used.add(k)));
+  const unused = Array.from(images.keys()).filter(k => !used.has(k));
+  const notes = [];
+  if (ignoredColumns.length) notes.push(`<div class="note">Columns not used: ${ignoredColumns.map(esc).join(', ')}.</div>`);
+  if (unused.length) notes.push(`<div class="note">${unused.length} selected picture${unused.length === 1 ? ' is' : 's are'} not named in the sheet and will not be uploaded${unused.length <= 5 ? ': ' + unused.map(esc).join(', ') : ''}.</div>`);
+  if (count('duplicate') && !$('allowDup').checked) notes.push('<div class="note warn">Possible duplicates will be skipped. Tick "Import possible duplicates too" on the previous screen to include them.</div>');
+  $('notes').innerHTML = notes.join('');
+
+  const rank = { error: 0, duplicate: 1, ok: 2 };
+  const order = results.map((r, i) => i).sort((a, b) => rank[results[a].status] - rank[results[b].status] || a - b).slice(0, 300);
+  const body = order.map(i => {
+    const r = results[i], s = r.summary || {};
+    const label = r.status === 'ok' ? '<span class="pill ok">Ready</span>' : r.status === 'duplicate' ? '<span class="pill duplicate">Possible duplicate</span>' : '<span class="pill error">Problem</span>';
+    const detail = s.type === 'THEORY' ? 'Theory' : `${s.options || 0} options${s.correct ? ' · answer ' + esc(s.correct) : ''}`;
+    return `<tr><td>${esc(r.line)}</td><td>${esc(TYPE_LABEL[s.type] || '—')}</td><td>${esc(s.text || '')}</td>
+      <td>${detail}</td><td>${s.marks ?? ''}</td><td>${s.pictures || ''}</td><td>${label}</td><td class="muted">${esc([...r.errors, ...r.warnings].join(' '))}</td></tr>`;
+  }).join('');
+  $('preview').innerHTML = `<table><thead><tr><th>Row</th><th>Type</th><th>Question</th><th>Options</th><th>Marks</th><th>Pics</th><th>Status</th><th>Notes</th></tr></thead><tbody>${body}</tbody></table>` +
+    (results.length > 300 ? '<div class="muted" style="padding:10px;">Showing the first 300 rows (problems first). Everything is still checked.</div>' : '');
+
+  const btn = $('importBtn');
+  btn.textContent = `Import ${ready} question${ready === 1 ? '' : 's'}`;
+  btn.disabled = ready === 0;
+}
+
+// ───────── 4. import ─────────
+async function mapLimit(items, limit, worker) {
+  let next = 0;
+  const run = async () => { while (next < items.length) { const i = next++; await worker(items[i], i); } };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+}
+
+async function startImport() {
+  hideAlert();
+  const list = importable();
+  if (!list.length || importing) return;
+  importing = true;
+  finalReport = { created: 0, skipped: [], failed: [] };
+  // rows that will not be imported are reported at the end
+  results.forEach((r, i) => {
+    const row = parsedRows[i];
+    if (r.status === 'error') finalReport.failed.push({ line: r.line, text: row.question, reason: r.errors.join(' ') });
+    else if (r.status === 'duplicate' && !$('allowDup').checked) finalReport.skipped.push({ line: r.line, text: row.question, reason: r.warnings.join(' ') || 'Possible duplicate.' });
+  });
+  show('previewCard', false); show('progressCard', true);
+  const opts = currentOptions();
+
+  // pictures: only the ones the importable rows actually use
+  const needed = Array.from(new Set(list.flatMap(x => x.r.uploads || [])));
+  const urls = {}, upFail = {};
+  let upDone = 0;
+  const setProgress = (pct, text) => { $('bar').style.width = pct + '%'; $('progressText').textContent = text; };
+  setProgress(0, needed.length ? `Uploading pictures… 0 of ${needed.length}` : 'Saving questions…');
+
+  await mapLimit(needed, 3, async (key) => {
+    const file = images.get(key);
+    try {
+      const res = await fetch(API + '/api/uploads/question-image', { method: 'POST', headers: { 'Content-Type': typeOfFile(file) }, body: file });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'upload failed');
+      urls[key] = data.url;
+    } catch (err) { upFail[key] = err.message; }
+    upDone++;
+    setProgress(Math.round((upDone / needed.length) * 40), `Uploading pictures… ${upDone} of ${needed.length}`);
+  });
+
+  // questions
+  const toSend = [];
+  list.forEach(({ r, i }) => {
+    const bad = (r.uploads || []).find(k => upFail[k]);
+    if (bad) finalReport.failed.push({ line: r.line, text: parsedRows[i].question, reason: `Picture "${bad}" could not be uploaded (${upFail[bad]}).` });
+    else toSend.push({ r, i });
+  });
+
+  let stopped = '';
+  for (let k = 0; k < toSend.length; k += CHUNK) {
+    const part = toSend.slice(k, k + CHUNK);
+    const image_urls = {};
+    part.forEach(x => (x.r.uploads || []).forEach(key => { if (urls[key]) image_urls[key] = urls[key]; }));
+    let res;
+    try {
+      res = await postJson('/api/question-import/commit', Object.assign({ exam_code: examCode, rows: part.map(x => parsedRows[x.i]), image_urls }, opts));
+    } catch (err) { stopped = 'The connection was lost: ' + err.message; break; }
+    if (!res.ok) { stopped = res.body.error || 'The import stopped unexpectedly.'; break; }
+    finalReport.created += res.body.created.length;
+    const textOf = (line) => { const idx = parsedRows.findIndex(p => p.line === line); return idx >= 0 ? parsedRows[idx].question : ''; };
+    res.body.skipped.forEach(s => finalReport.skipped.push({ line: s.line, text: textOf(s.line), reason: s.reason }));
+    res.body.failed.forEach(s => finalReport.failed.push({ line: s.line, text: textOf(s.line), reason: s.reason }));
+    const done = Math.min(k + CHUNK, toSend.length);
+    setProgress(40 + Math.round((done / toSend.length) * 60), `Saving questions… ${done} of ${toSend.length}`);
+  }
+  if (stopped) finalReport.failed.push({ line: '', text: '', reason: 'The import stopped early: ' + stopped + ' Questions saved before this point are kept. Upload the file again to add the rest (repeats are skipped).' });
+
+  importing = false;
+  show('progressCard', false);
+  renderDone();
+}
+$('importBtn').addEventListener('click', startImport);
+window.addEventListener('beforeunload', (e) => { if (importing) { e.preventDefault(); e.returnValue = ''; } });
+
+function notImportedRows() {
+  return [...finalReport.failed, ...finalReport.skipped].sort((a, b) => (Number(a.line) || 1e9) - (Number(b.line) || 1e9));
+}
+function renderDone() {
+  const notIn = notImportedRows();
+  $('doneSummary').innerHTML = `
+    <div class="box"><strong style="color:var(--emerald-dark)">${finalReport.created}</strong>Questions imported</div>
+    <div class="box"><strong style="color:#854D0E">${finalReport.skipped.length}</strong>Skipped as duplicates</div>
+    <div class="box"><strong style="color:var(--danger)">${finalReport.failed.length}</strong>Not imported</div>`;
+  $('doneErrors').innerHTML = finalReport.failed.slice(0, 15).map(f => `Row ${esc(f.line)}: ${esc(f.reason)}`).join('<br>') +
+    (finalReport.failed.length > 15 ? `<br>…and ${finalReport.failed.length - 15} more in the download.` : '');
+  $('problemsBtn').hidden = notIn.length === 0;
+  show('doneCard', true);
+}
+
+// Excel treats text starting with = + - @ as a formula, so those are marked as plain text.
+function csvCell(v) {
+  let s = String(v ?? '');
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+function notImportedCsv() {
+  const lines = [['Row', 'Question', 'Reason'].map(csvCell).join(',')];
+  notImportedRows().forEach(f => lines.push([f.line, f.text, f.reason].map(csvCell).join(',')));
+  return '\uFEFF' + lines.join('\r\n') + '\r\n';
+}
+$('problemsBtn').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([notImportedCsv()], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'questions-not-imported.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+});
+$('againBtn').addEventListener('click', () => {
+  dataBytes = null; parsedRows = []; results = [];
+  $('dataFile').value = ''; $('pasteBox').value = ''; $('dataInfo').textContent = '';
+  show('doneCard', false); show('setup', true);
+});
+
+// ───────── start-up ─────────
+async function start() {
+  try {
+    const me = (await api('/api/auth/admin-me')).body;
+    if (!me.success) { window.location.href = '/admin-login'; return; }
+    const back = '/admin-questions?exam_code=' + encodeURIComponent(examCode);
+    $('backLink').href = back; $('doneBack').href = back;
+    const list = (await api('/api/exams')).body;
+    const exam = Array.isArray(list) ? list.find(e => e.exam_code === examCode) : null;
+    $('examSub').textContent = exam ? `${exam.exam_title} · ${exam.exam_code}` : (examCode || 'No exam chosen');
+  } catch (err) {
+    window.location.href = '/admin-login';
+  }
+}
+start();
+</script>
+<script src="/sidebar.js"></script>
+<script src="/branding.js"></script>
+</body>
+</html>

@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Question Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .topbar { background: var(--navy); color: white; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar .brand { display: flex; align-items: center; gap: 10px; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 18px; }
+  .back-link { color: #B9C6D6; text-decoration: none; font-size: 14px; }
+  .back-link:hover { color: white; }
+
+  .content { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
+  .page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .page-head h2 { font-size: 20px; }
+  .exam-sub { color: var(--text-muted); font-size: 13px; margin-bottom: 24px; }
+
+  .q-card { background: white; border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  .q-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .q-type-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 20px; text-transform: uppercase; margin-bottom: 8px; }
+  .q-type-badge.mcq { background: #EFF6FF; color: #1E40AF; }
+  .q-type-badge.theory { background: #FFF7ED; color: var(--orange-dark); }
+  .q-text { font-size: 14px; margin-bottom: 10px; }
+  .q-text p { margin: 0 0 6px; }
+  .q-text ul, .q-text ol { margin: 4px 0 6px 20px; }
+  .q-image { display: block; max-width: 100%; border-radius: 8px; margin: 8px 0; }
+  .q-options { font-size: 13px; color: var(--text-muted); }
+  .q-options .opt { display: flex; align-items: flex-start; gap: 10px; padding: 4px 0; }
+  .q-options .opt .opt-text { flex: 1; }
+  .q-options .opt .opt-text p { margin: 0; }
+  .q-options .correct { color: var(--emerald-dark); font-weight: 700; }
+  .q-options .opt-image { display: block; max-width: 100%; border-radius: 6px; margin: 4px 0; }
+  .q-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .q-actions button { padding: 6px 10px; font-size: 12px; }
+  .empty { text-align: center; color: var(--text-muted); padding: 60px 20px; }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 998; padding: 20px; }
+  .modal-backdrop.show { display: flex; }
+  .modal-box { background: white; border-radius: 16px; padding: 28px; max-width: 660px; width: 100%; max-height: 90vh; overflow-y: auto; }
+  .modal-box h3 { font-size: 18px; margin-bottom: 18px; }
+  .form-row { margin-bottom: 14px; }
+  .form-row label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 5px; }
+  .form-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  textarea.input { min-height: 80px; font-family: inherit; resize: vertical; }
+  .option-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+  .option-row .option-body { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .option-row input[type=radio] { margin-top: 12px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .modal-actions button { flex: 1; }
+
+  /* Rich text editor */
+  .rte { border: 1px solid #D7DEE8; border-radius: 10px; overflow: hidden; background: #fff; }
+  .rte-toolbar { display: flex; gap: 4px; flex-wrap: wrap; padding: 6px 8px; background: #F5F7FA; border-bottom: 1px solid #E3E8EF; }
+  .rte-toolbar button { background: transparent; border: 0; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; color: #334155; }
+  .rte-toolbar button:hover { background: #E8EEF6; }
+  .rte-body { min-height: 90px; padding: 10px 12px; font-size: 14px; outline: none; line-height: 1.5; }
+  .rte-body.is-empty::before { content: attr(data-placeholder); color: #9AA7B8; pointer-events: none; }
+  .rte-body p { margin: 0 0 6px; }
+  .rte-body ul, .rte-body ol { margin: 4px 0 6px 20px; }
+  .rte.compact .rte-body { min-height: 38px; padding: 8px 10px; }
+  .rte.compact .rte-toolbar { padding: 4px 6px; }
+
+  /* Image attach */
+  .img-attach { border: 1px dashed #C8D2E0; border-radius: 10px; padding: 10px; background: #FAFBFD; margin-top: 4px; }
+  .img-attach.has-image { border-style: solid; border-color: #C8D2E0; background: #fff; }
+  .img-preview { margin-top: 10px; }
+  .img-preview img { max-width: 100%; border-radius: 8px; display: block; }
+  .img-controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-top: 10px; font-size: 12px; }
+  .img-controls input[type=range] { width: 120px; vertical-align: middle; }
+  .img-controls label { display: inline-flex; align-items: center; gap: 6px; }
+  .img-hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+  .img-add-btn { font-size: 12px; padding: 4px 10px; }
+</style>
+</head>
+<body class="has-sidebar">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+
+  <a href="/admin-exams" class="back-link">← Back to Exams</a>
+
+  <div class="content">
+    <div class="page-head">
+      <h2>Question Builder</h2>
+     <div style="display:flex; gap:8px;">
+  <button class="btn btn-ghost" onclick="window.location.href='/admin-questions-bulk?exam_code=' + encodeURIComponent(examCode)">&uarr; Bulk Upload</button>
+  <button class="btn btn-ghost" onclick="openBankPicker()">☁ Import from Bank</button>
+  <button class="btn btn-primary" onclick="openCreateModal()">+ Add Question</button>
+</div>
+    </div>
+    <div class="exam-sub" id="examSub">Loading exam...</div>
+    <div id="listContainer"></div>
+  </div>
+
+  <div class="modal-backdrop" id="qModal">
+    <div class="modal-box">
+      <h3 id="modalTitle">Add Question</h3>
+      <form id="qForm">
+        <div class="form-row">
+          <label>Question Type *</label>
+          <select class="input" id="question_type" onchange="onTypeChange()">
+            <option value="MCQ_SINGLE">Objective — Multiple Choice</option>
+            <option value="TRUE_FALSE">Objective — True / False</option>
+            <option value="THEORY">Theory</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label>Question Text *</label>
+          <div class="rte" data-rte-target="question_text">
+            <div class="rte-toolbar">
+              <button type="button" data-cmd="bold" title="Bold"><b>B</b></button>
+              <button type="button" data-cmd="italic" title="Italic"><i>I</i></button>
+              <button type="button" data-cmd="underline" title="Underline"><u>U</u></button>
+              <button type="button" data-cmd="insertUnorderedList" title="Bullet list">• List</button>
+              <button type="button" data-cmd="insertOrderedList" title="Numbered list">1. List</button>
+              <button type="button" data-cmd="formatBlock" data-value="p" title="Paragraph">¶</button>
+              <button type="button" data-cmd="formatBlock" data-value="h3" title="Heading">H</button>
+              <button type="button" data-cmd="createLink" title="Insert link">🔗</button>
+              <button type="button" data-cmd="removeFormat" title="Clear formatting">✕ fmt</button>
+            </div>
+            <div class="rte-body" contenteditable="true" id="question_text" data-placeholder="Type the question…"></div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label>Question Image (optional)</label>
+          <div class="img-attach" id="qImgAttach">
+            <input type="file" id="qImgFile" accept="image/*" hidden />
+            <button type="button" class="btn btn-ghost img-add-btn" id="qImgAddBtn" onclick="document.getElementById('qImgFile').click()">+ Add image</button>
+            <div class="img-preview" id="qImgPreview" style="display:none;">
+              <img id="qImgPreviewEl" alt="" />
+              <div class="img-controls">
+                <label>Size
+                  <input type="range" id="qImgWidth" min="20" max="100" value="60" step="5" />
+                  <span id="qImgWidthVal">60%</span>
+                </label>
+                <label>Align
+                  <select id="qImgAlign">
+                    <option value="left">Left</option>
+                    <option value="center" selected>Center</option>
+                    <option value="right">Right</option>
+                  </select>
+                </label>
+                <button type="button" class="btn btn-ghost" onclick="removeQuestionImage()">Remove</button>
+              </div>
+            </div>
+            <div class="img-hint">Attached separately — never mixed into the question text.</div>
+          </div>
+        </div>
+
+        <div class="form-two-col">
+          <div class="form-row">
+            <label>Marks *</label>
+            <input class="input" type="number" id="marks" value="1" required />
+          </div>
+          <div class="form-row">
+            <label>Difficulty</label>
+            <select class="input" id="difficulty_level">
+              <option value="">—</option>
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="mcqSection">
+          <div class="form-row">
+            <label>Options (select the correct one)</label>
+            <div id="optionsList"></div>
+            <button type="button" class="btn btn-ghost" onclick="addOptionRow()" style="margin-top:6px;">+ Add Option</button>
+          </div>
+        </div>
+
+        <div id="theorySection" style="display:none;">
+          <div class="form-row">
+            <label>Answer Mode</label>
+            <select class="input" id="answer_mode">
+              <option value="screen_to_screen">Type on screen</option>
+              <option value="screen_to_paper">Write on paper</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Student Instructions</label>
+            <textarea class="input" id="student_instructions"></textarea>
+          </div>
+          <div class="form-two-col">
+            <div class="form-row">
+              <label>Max Words</label>
+              <input class="input" type="number" id="max_words" />
+            </div>
+            <div class="form-row">
+              <label>Time Limit (minutes)</label>
+              <input class="input" type="number" id="time_limit_minutes" />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label>Explanation (rich text, optional — shown to student after the exam)</label>
+          <div class="rte" data-rte-target="explanation">
+            <div class="rte-toolbar">
+              <button type="button" data-cmd="bold"><b>B</b></button>
+              <button type="button" data-cmd="italic"><i>I</i></button>
+              <button type="button" data-cmd="underline"><u>U</u></button>
+              <button type="button" data-cmd="insertUnorderedList">• List</button>
+              <button type="button" data-cmd="insertOrderedList">1. List</button>
+              <button type="button" data-cmd="createLink">🔗</button>
+              <button type="button" data-cmd="removeFormat">✕ fmt</button>
+            </div>
+            <div class="rte-body" contenteditable="true" id="explanation" data-placeholder="Explain the correct answer…"></div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveBtn">Save Question</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ Preloaded Question Bank Picker ============ -->
+<div class="modal-backdrop" id="bankPickerModal">
+  <div class="modal-box" style="max-width:900px;">
+    <h3 style="display:flex;align-items:center;gap:10px;">
+      <span>☁ Import from Preloaded Question Bank</span>
+      <span id="bankPickerCount" style="font-size:12px;color:var(--text-muted);font-weight:400;"></span>
+    </h3>
+
+    <!-- Filter bar -->
+    <div class="bank-picker-filters" style="display:grid;
+         grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;
+         margin-bottom:12px;">
+      <select id="bpSubject" class="input" onchange="renderBankPicker()">
+        <option value="">All Subjects</option>
+      </select>
+      <select id="bpTopic" class="input" onchange="renderBankPicker()">
+        <option value="">All Topics</option>
+      </select>
+      <select id="bpExamBody" class="input" onchange="renderBankPicker()">
+        <option value="">All Exam Bodies</option>
+      </select>
+      <select id="bpYear" class="input" onchange="renderBankPicker()">
+        <option value="">All Years</option>
+      </select>
+      <select id="bpDifficulty" class="input" onchange="renderBankPicker()">
+        <option value="">All Difficulty</option>
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+      <input type="text" id="bpSearch" class="input" placeholder="Search question text…"
+             oninput="renderBankPicker()" />
+    </div>
+
+    <!-- Toolbar -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px;">
+      <button class="btn btn-ghost" onclick="bpSelectPage()">Select Page</button>
+      <button class="btn btn-ghost" onclick="bpClearSelection()">Clear</button>
+      <span id="bpSelCounter" style="color:var(--text-muted);">0 selected</span>
+      <span style="flex:1;"></span>
+      <span id="bpPageInfo" style="color:var(--text-muted);font-size:12px;"></span>
+    </div>
+
+    <!-- List -->
+    <div id="bankPickerList" style="max-height:52vh;overflow-y:auto;
+         border:1px solid #E5E7EB;border-radius:10px;padding:8px;background:#FAFBFD;">
+      <div class="empty" style="padding:20px;">Loading…</div>
+    </div>
+
+    <!-- Pagination -->
+    <div id="bankPickerPagination" style="display:flex;justify-content:center;
+         gap:8px;margin-top:12px;"></div>
+
+    <!-- Actions -->
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" onclick="closeBankPicker()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="bpImportBtn"
+              onclick="importFromBank()" disabled>Import Selected</button>
+    </div>
+  </div>
+</div>
+<script>
+const API = window.location.origin;
+const params = new URLSearchParams(window.location.search);
+const examCode = params.get('exam_code');
+let questions = [];
+let editingQuestionId = null;
+
+let questionImage = null; // { url, width_pct, align }
+
+/* ---------- Utilities ---------- */
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+/* ---------- Client-side HTML allow-list (server also sanitizes) ---------- */
+const ALLOWED_TAGS = new Set(['B','I','U','STRONG','EM','UL','OL','LI','P','BR','A','CODE','H3','SPAN']);
+function sanitizeHtml(html) {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html || '';
+  (function walk(node) {
+    [...node.children].forEach(child => {
+      if (!ALLOWED_TAGS.has(child.tagName)) {
+        child.replaceWith(...child.childNodes);
+        return;
+      }
+      [...child.attributes].forEach(attr => {
+        const ok = (child.tagName === 'A' && attr.name === 'href');
+        if (!ok) child.removeAttribute(attr.name);
+      });
+      walk(child);
+    });
+  })(tpl.content);
+  return tpl.innerHTML.trim();
+}
+
+/* ---------- Rich text editors ---------- */
+function initRTE(root) {
+  if (!root) return;
+  const body = root.querySelector('.rte-body');
+  root.querySelectorAll('.rte-toolbar button').forEach(btn => {
+    btn.addEventListener('mousedown', e => e.preventDefault());
+    btn.addEventListener('click', () => {
+      const cmd = btn.dataset.cmd;
+      if (cmd === 'createLink') {
+        const url = prompt('Link URL:');
+        if (url) document.execCommand('createLink', false, url);
+      } else if (cmd === 'formatBlock') {
+        document.execCommand('formatBlock', false, btn.dataset.value || 'p');
+      } else {
+        document.execCommand(cmd, false, null);
+      }
+      body.focus();
+    });
+  });
+  syncPlaceholder(body);
+  body.addEventListener('input', () => syncPlaceholder(body));
+}
+function syncPlaceholder(el) {
+  if (!el) return;
+  el.classList.toggle('is-empty', !el.textContent.trim() && !el.querySelector('img'));
+}
+
+/* ---------- Image attach (reusable for question and options) ---------- */
+function createImageAttach({ container, onChange }) {
+  const state = { value: null };
+  const fileInput = container.querySelector('input[type=file]');
+  const addBtn    = container.querySelector('.img-add-btn');
+  const preview   = container.querySelector('.img-preview');
+  const previewEl = container.querySelector('.img-preview img');
+  const widthEl   = container.querySelector('input[type=range]');
+  const widthVal  = container.querySelector('span[id$="ImgWidthVal"], span[data-width-val]');
+  const alignEl   = container.querySelector('select');
+  const removeBtn = container.querySelector('button[data-action="remove-image"]');
+
+  function applyStyle() {
+    if (!previewEl) return;
+    const w = +widthEl.value;
+    const a = alignEl.value;
+    previewEl.style.width = w + '%';
+    previewEl.style.marginLeft = (a === 'right' || a === 'center') ? 'auto' : '0';
+    previewEl.style.marginRight = (a === 'left' || a === 'center') ? 'auto' : '0';
+  }
+
+  function show(url) {
+    previewEl.src = url;
+    preview.style.display = 'block';
+    container.classList.add('has-image');
+    addBtn.style.display = 'none';
+    applyStyle();
+  }
+
+  function clear() {
+    state.value = null;
+    fileInput.value = '';
+    previewEl.removeAttribute('src');
+    preview.style.display = 'none';
+    container.classList.remove('has-image');
+    addBtn.style.display = '';
+    widthEl.value = 60;
+    if (widthVal) widthVal.textContent = '60%';
+    alignEl.value = 'center';
+    if (onChange) onChange(null);
+  }
+
+  fileInput.addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const localUrl = URL.createObjectURL(file);
+    state.value = { url: localUrl, width_pct: +widthEl.value, align: alignEl.value };
+    show(localUrl);
+    if (onChange) onChange(state.value);
+
+  try {
+  const buf = await file.arrayBuffer();
+  const res = await fetch(`${API}/api/uploads/question-image`, {
+  method: 'POST',
+  credentials: 'include',                                     // ← ADD THIS
+  headers: { 'Content-Type': file.type || 'application/octet-stream' },
+  body: buf
+});
+  const data = await res.json();
+  if (!res.ok || !data.url) throw new Error(data.error || 'Upload failed');
+  state.value.url = data.url;
+  show(data.url);
+  if (onChange) onChange(state.value);
+} catch (err) {
+  console.error('Image upload failed:', err);
+  alert('Image upload failed: ' + err.message + '\nThe image will not be saved.');
+  clear();          // remove the broken preview so the user knows
+  if (onChange) onChange(null);
+}
+  });
+
+  widthEl.addEventListener('input', () => {
+    if (widthVal) widthVal.textContent = widthEl.value + '%';
+    if (state.value) state.value.width_pct = +widthEl.value;
+    applyStyle();
+    if (onChange) onChange(state.value);
+  });
+
+  alignEl.addEventListener('change', () => {
+    if (state.value) state.value.align = alignEl.value;
+    applyStyle();
+    if (onChange) onChange(state.value);
+  });
+
+  if (removeBtn) removeBtn.addEventListener('click', clear);
+
+  return {
+    getValue: () => state.value,
+    setValue: (v) => {
+      if (v && v.url) {
+        state.value = { url: v.url, width_pct: +v.width_pct || 60, align: v.align || 'center' };
+        widthEl.value = state.value.width_pct;
+        if (widthVal) widthVal.textContent = state.value.width_pct + '%';
+        alignEl.value = state.value.align;
+        show(v.url);
+      } else {
+        clear();
+      }
+    },
+    clear
+  };
+}
+
+let questionImageCtl = null;
+
+function initQuestionImage() {
+  questionImageCtl = createImageAttach({
+    container: document.getElementById('qImgAttach'),
+    onChange: (v) => { questionImage = v; }
+  });
+  // fix: remove button in markup had no data-action; attach directly
+  const rm = document.getElementById('qImgAttach').querySelector('button.btn.btn-ghost:not(.img-add-btn)');
+  if (rm) rm.addEventListener('click', () => {
+    questionImageCtl.clear();
+    questionImage = null;
+  });
+}
+
+/* ---------- Options ---------- */
+function addOptionRow(prefillText, prefillImage) {
+  const list = document.getElementById('optionsList');
+  const row = document.createElement('div');
+  row.className = 'option-row';
+  row.innerHTML = `
+    <input type="radio" name="correctOption" />
+    <div class="option-body">
+      <div class="rte compact option-editor">
+        <div class="rte-toolbar">
+          <button type="button" data-cmd="bold"><b>B</b></button>
+          <button type="button" data-cmd="italic"><i>I</i></button>
+          <button type="button" data-cmd="underline"><u>U</u></button>
+        </div>
+        <div class="rte-body" contenteditable="true" data-placeholder="Option text"></div>
+      </div>
+
+      <div class="img-attach option-img-attach">
+        <input type="file" accept="image/*" hidden />
+        <button type="button" class="btn btn-ghost img-add-btn">+ Add image</button>
+        <div class="img-preview" style="display:none;">
+          <img alt="" />
+          <div class="img-controls">
+            <label>Size
+              <input type="range" min="20" max="100" value="60" step="5" />
+              <span data-width-val>60%</span>
+            </label>
+            <label>Align
+              <select>
+                <option value="left">Left</option>
+                <option value="center" selected>Center</option>
+                <option value="right">Right</option>
+              </select>
+            </label>
+            <button type="button" class="btn btn-ghost" data-action="remove-image">Remove</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button type="button" class="btn btn-ghost" onclick="this.parentElement.remove()">✕</button>
+  `;
+  list.appendChild(row);
+
+  // Wire editors
+  initRTE(row.querySelector('.rte'));
+
+  // Wire image attach
+  const attachEl = row.querySelector('.img-attach');
+  const addBtn = attachEl.querySelector('.img-add-btn');
+  const fileInput = attachEl.querySelector('input[type=file]');
+  addBtn.addEventListener('click', () => fileInput.click());
+
+  const imgCtl = createImageAttach({
+    container: attachEl,
+    onChange: (v) => { row.dataset.imageJson = v ? JSON.stringify(v) : ''; }
+  });
+
+  // Prefill
+  const body = row.querySelector('.rte-body');
+  if (prefillText) {
+    body.innerHTML = prefillText;
+    syncPlaceholder(body);
+  }
+  if (prefillImage) imgCtl.setValue(prefillImage);
+
+  return { row, imgCtl };
+}
+
+function collectOptions() {
+  const rows = document.querySelectorAll('#optionsList .option-row');
+  const options = [];
+  rows.forEach(row => {
+    const body = row.querySelector('.rte-body');
+    const html = sanitizeHtml(body.innerHTML);
+    const plain = body.textContent.trim();
+    const isCorrect = row.querySelector('input[type=radio]').checked;
+    let image = null;
+    try {
+      const raw = row.dataset.imageJson;
+      if (raw) image = JSON.parse(raw);
+    } catch (_) {}
+    if (plain || image) {
+      options.push({ option_text: html, is_correct: isCorrect, image });
+    }
+  });
+  return options;
+}
+
+/* ---------- Data loading ---------- */
+async function loadExamInfo() {
+  try {
+    const res = await fetch(`${API}/api/exams`);
+    const all = await res.json();
+    const list = Array.isArray(all) ? all : (all.exams || []);
+    const exam = list.find(e => e.exam_code === examCode);
+    document.getElementById('examSub').textContent = exam
+      ? `${exam.exam_title} · ${exam.exam_code}`
+      : examCode;
+  } catch (e) { /* non-critical */ }
+}
+
+async function loadQuestions() {
+  try {
+    const res = await fetch(`${API}/api/questions?exam_code=${encodeURIComponent(examCode)}`);
+    const data = await res.json();
+    questions = Array.isArray(data) ? data : (data.questions || []);
+    renderList();
+  } catch (err) {
+    document.getElementById('listContainer').innerHTML =
+      `<div class="empty">Failed to load questions: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+/* ---------- Rendering ---------- */
+function renderImage(img, cls) {
+  if (!img || !img.url) return '';
+  const w = Math.min(100, Math.max(10, +img.width_pct || 60));
+  const a = img.align || 'center';
+  const ml = (a === 'center' || a === 'right') ? 'auto' : '0';
+  const mr = (a === 'center' || a === 'left') ? 'auto' : '0';
+  return `<img src="${escapeHtml(img.url)}" class="${cls || 'q-image'}" alt=""
+    style="width:${w}%; margin-left:${ml}; margin-right:${mr};">`;
+}
+
+function renderList() {
+  const container = document.getElementById('listContainer');
+  if (questions.length === 0) {
+    container.innerHTML = `<div class="empty">No questions yet. Click "+ Add Question" to create one.</div>`;
+    return;
+  }
+
+  container.innerHTML = questions.map((q, i) => {
+    const isTheory = q.question_type === 'THEORY';
+    const qImg = q.question_image || (q.image_url ? {
+      url: q.image_url, width_pct: q.image_width_pct, align: q.image_align
+    } : null);
+
+    let optionsHtml = '';
+    if (!isTheory && Array.isArray(q.options)) {
+      optionsHtml = `<div class="q-options">` + q.options.map(o => {
+        const isCorrect = o.is_correct || o.option_id === q.correct_answer;
+        const optImg = o.image || (o.image_url ? {
+          url: o.image_url, width_pct: o.image_width_pct, align: o.image_align
+        } : null);
+        return `
+          <div class="opt ${isCorrect ? 'correct' : ''}">
+            <div class="opt-text">
+              ${isCorrect ? '✓ ' : ''}${o.option_text || ''}
+              ${renderImage(optImg, 'opt-image')}
+            </div>
+          </div>`;
+      }).join('') + `</div>`;
+    }
+
+    return `
+      <div class="q-card">
+        <div class="q-card-top">
+          <div style="flex:1">
+            <span class="q-type-badge ${isTheory ? 'theory' : 'mcq'}">${escapeHtml(q.question_type.replace('_', ' '))}</span> · ${q.marks} mark(s)
+            <div class="q-text">${i + 1}. ${q.question_text || ''}</div>
+            ${renderImage(qImg)}
+            ${optionsHtml}
+          </div>
+         <div class="q-actions">
+  <button class="btn btn-ghost" onclick="openEditModal('${q.question_id}')">Edit</button>
+  <button class="btn btn-ghost" onclick="deleteQuestion('${q.question_id}')" style="color:var(--danger)">Delete</button>
+</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ---------- Modal ---------- */
+function openCreateModal() {
+  editingQuestionId = null;
+  document.getElementById('modalTitle').textContent = 'Add Question';
+  document.getElementById('qForm').reset();
+  document.getElementById('question_text').innerHTML = '';
+  syncPlaceholder(document.getElementById('question_text'));
+  const exp = document.getElementById('explanation');
+  if (exp) { exp.innerHTML = ''; syncPlaceholder(exp); }
+  document.getElementById('optionsList').innerHTML = '';
+  if (questionImageCtl) questionImageCtl.clear();
+  questionImage = null;
+  addOptionRow(); addOptionRow();
+  onTypeChange();
+  document.getElementById('qModal').classList.add('show');
+}
+
+async function openEditModal(questionId) {
+  try {
+    const res = await fetch(`${API}/api/questions/${encodeURIComponent(questionId)}`, {
+      credentials: 'include'
+    });
+    const q = await res.json();
+    if (!res.ok) throw new Error(q.error || 'Failed to load question');
+
+    editingQuestionId = q.question_id;
+
+    // Header
+    document.getElementById('modalTitle').textContent = 'Edit Question';
+
+    // Basic fields
+    document.getElementById('question_type').value = q.question_type || 'MCQ_SINGLE';
+    document.getElementById('marks').value = q.marks ?? 1;
+    document.getElementById('difficulty_level').value = q.difficulty_level || '';
+
+    // Question rich text
+    const qEl = document.getElementById('question_text');
+    qEl.innerHTML = q.question_text || '';
+    syncPlaceholder(qEl);
+
+    // Explanation rich text
+    const eEl = document.getElementById('explanation');
+    eEl.innerHTML = q.explanation || '';
+    syncPlaceholder(eEl);
+
+    // Question image
+    if (q.question_image) questionImageCtl.setValue(q.question_image);
+    else questionImageCtl.clear();
+    questionImage = q.question_image
+      ? { url: q.question_image.url, width_pct: q.question_image.width_pct, align: q.question_image.align }
+      : null;
+
+    // Show/hide sections for the type
+    onTypeChange();
+
+    // Options
+    const optionsList = document.getElementById('optionsList');
+    optionsList.innerHTML = '';
+
+    if (Array.isArray(q.options) && q.options.length > 0) {
+      q.options.forEach(opt => {
+        const { row } = addOptionRow(
+          opt.option_text || '',
+          opt.image || null
+        );
+        if (opt.option_id === q.correct_answer || opt.is_correct) {
+          const radio = row.querySelector('input[type=radio]');
+          if (radio) radio.checked = true;
+        }
+      });
+    } else {
+      // Fallback for theory or empty
+      addOptionRow(); addOptionRow();
+    }
+
+    // Theory fields
+    if (q.question_type === 'THEORY') {
+      document.getElementById('answer_mode').value = q.answer_mode || 'screen_to_screen';
+      document.getElementById('student_instructions').value = q.student_instructions || '';
+      document.getElementById('max_words').value = q.max_words ?? '';
+      document.getElementById('time_limit_minutes').value = q.time_limit_minutes ?? '';
+    }
+
+    document.getElementById('qModal').classList.add('show');
+  } catch (err) {
+    alert('Failed to load question: ' + err.message);
+  }
+}
+
+function closeModal() {
+  document.getElementById('qModal').classList.remove('show');
+}
+
+function onTypeChange() {
+  const type = document.getElementById('question_type').value;
+  const isTheory = type === 'THEORY';
+  document.getElementById('mcqSection').style.display = isTheory ? 'none' : 'block';
+  document.getElementById('theorySection').style.display = isTheory ? 'block' : 'none';
+
+  if (type === 'TRUE_FALSE') {
+    document.getElementById('optionsList').innerHTML = '';
+    addOptionRow('True');
+    addOptionRow('False');
+    const first = document.querySelector('#optionsList .option-row input[type=radio]');
+    if (first) first.checked = true;
+  }
+}
+
+/* ---------- Submit ---------- */
+document.getElementById('qForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('saveBtn').textContent = editingQuestionId ? 'Update Question' : 'Save Question';
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+if (questionImage && questionImage.url && questionImage.url.startsWith('blob:')) {
+  alert('Question image is still uploading — wait a moment and try again.');
+  btn.disabled = false; btn.textContent = 'Save Question';
+  return;
+}
+for (const o of collectOptions()) {
+  if (o.image && o.image.url && o.image.url.startsWith('blob:')) {
+    alert('An option image is still uploading — wait a moment and try again.');
+    btn.disabled = false; btn.textContent = 'Save Question';
+    return;
+  }
+}
+  const type = document.getElementById('question_type').value;
+  const isTheory = type === 'THEORY';
+
+  const explanationEl = document.getElementById('explanation');
+  const explanationHtml = sanitizeHtml(explanationEl.innerHTML);
+
+  const payload = {
+    exam_code: examCode,
+    question_type: type,
+    question_text: sanitizeHtml(document.getElementById('question_text').innerHTML),
+    marks: parseFloat(document.getElementById('marks').value) || 1,
+    difficulty_level: document.getElementById('difficulty_level').value || null,
+    explanation: explanationHtml || null,
+    question_image: questionImage
+      ? { url: questionImage.url, width_pct: questionImage.width_pct, align: questionImage.align }
+      : null
+  };
+
+  if (!payload.question_text || payload.question_text === '<br>') {
+    alert('Please enter the question text.');
+    btn.disabled = false; btn.textContent = 'Save Question';
+    return;
+  }
+
+  if (isTheory) {
+    payload.answer_mode = document.getElementById('answer_mode').value;
+    payload.student_instructions = document.getElementById('student_instructions').value || null;
+    payload.max_words = document.getElementById('max_words').value ? parseInt(document.getElementById('max_words').value) : null;
+    payload.time_limit_minutes = document.getElementById('time_limit_minutes').value ? parseInt(document.getElementById('time_limit_minutes').value) : null;
+    payload.options = [];
+  } else {
+    const options = collectOptions();
+    if (options.length < 2) {
+      alert('Please add at least 2 options.');
+      btn.disabled = false; btn.textContent = 'Save Question';
+      return;
+    }
+    const correctIndex = options.findIndex(o => o.is_correct);
+    if (correctIndex === -1) {
+      alert('Please mark one option as correct.');
+      btn.disabled = false; btn.textContent = 'Save Question';
+      return;
+    }
+    payload.options = options.map((o, i) => ({
+      option_text: o.option_text,
+      is_correct: i === correctIndex,
+      image: o.image
+    }));
+  }
+
+  try {
+   const url = editingQuestionId
+  ? `${API}/api/questions/${encodeURIComponent(editingQuestionId)}`
+  : `${API}/api/questions`;
+const method = editingQuestionId ? 'PUT' : 'POST';
+
+console.log('PUT payload:', JSON.stringify(payload, null, 2));
+const res = await fetch(url, {
+  method,
+  credentials: 'include',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload)
+});
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || 'Failed to save question.');
+      btn.disabled = false; btn.textContent = 'Save Question';
+      return;
+    }
+
+  closeModal();
+editingQuestionId = null;
+document.getElementById('saveBtn').textContent = 'Save Question';
+await loadQuestions();   // ← make sure this is present and awaited
+    
+  } catch (err) {
+    alert('Connection failed: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Question';
+  }
+});
+
+async function deleteQuestion(questionId) {
+  if (!confirm('Delete this question and its options?')) return;
+  try {
+    await fetch(`${API}/api/questions/${encodeURIComponent(questionId)}`, { method: 'DELETE' });
+    await loadQuestions();
+  } catch (err) {
+    alert('Failed to delete: ' + err.message);
+  }
+}
+
+async function checkAdminSession() {
+  try {
+    const res = await fetch(`${API}/api/auth/admin-me`);
+    const data = await res.json();
+    if (!data.success) { window.location.href = '/admin-login'; return; }
+    loadExamInfo();
+    loadQuestions();
+  } catch (err) {
+    window.location.href = '/admin-login';
+  }
+}
+
+/* ---------- Boot ---------- */
+document.querySelectorAll('.rte').forEach(initRTE);
+initQuestionImage();
+checkAdminSession();
+
+/* ============================================================
+ * Preloaded Question Bank — direct picker
+ * ========================================================== */
+const BP_MAX      = 40;
+const BP_PER_PAGE = 20;
+
+let bpAll       = [];       // full list fetched from cloud
+let bpFiltered  = [];       // after filters
+let bpPage      = 1;
+let bpSelected  = new Set(); // Set<question_code>
+
+async function openBankPicker() {
+  bpSelected.clear();
+  bpPage = 1;
+
+  document.getElementById('bankPickerList').innerHTML =
+    '<div class="empty" style="padding:20px;">Fetching from cloud…</div>';
+  document.getElementById('bankPickerPagination').innerHTML = '';
+  document.getElementById('bpSelCounter').textContent = '0 selected';
+  document.getElementById('bpImportBtn').disabled = true;
+  document.getElementById('bankPickerModal').classList.add('show');
+
+  try {
+    const r = await fetch(
+      `${API}/api/sync/prep-questions?exam_code=${encodeURIComponent(examCode)}`,
+      { credentials: 'include' }
+    );
+    const data = await r.json();
+    if (data.status !== 'success') throw new Error(data.message || 'Failed to fetch bank.');
+
+    bpAll = data.questions || [];
+    buildBankFilterDropdowns(bpAll);
+    applyBankFilters();
+  } catch (err) {
+    document.getElementById('bankPickerList').innerHTML =
+      `<div class="empty" style="padding:20px;">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function closeBankPicker() {
+  document.getElementById('bankPickerModal').classList.remove('show');
+}
+
+function buildBankFilterDropdowns(rows) {
+  // Build [{code, label}] pairs, dedupe by code
+  const pairs = (codeKey, nameKey) => {
+    const m = new Map();
+    rows.forEach(r => {
+      const code = r[codeKey];
+      if (!code) return;
+      if (!m.has(code)) m.set(code, r[nameKey] || code);
+    });
+    return [...m.entries()]
+      .map(([code, label]) => ({ code, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  };
+
+  fillDropdownPairs('bpSubject',  pairs('subject_code',   'subject_name'));
+  fillDropdownPairs('bpTopic',    pairs('topic_code',     'topic_name'));
+  fillDropdownPairs('bpExamBody', pairs('exam_body_code', 'exam_body_name'));
+
+  // Years
+  const years = [...new Set(rows.map(r => r.year).filter(Boolean))]
+                  .sort().reverse();
+  fillDropdown('bpYear', years);
+}
+
+function fillDropdownPairs(id, pairs) {
+  const sel = document.getElementById(id);
+  while (sel.options.length > 1) sel.remove(1);   // keep "All …"
+  pairs.forEach(({ code, label }) => {
+    const o = document.createElement('option');
+    o.value = code;          // ← filter by code (matches bpFiltered)
+    o.textContent = label;   // ← display name
+    sel.appendChild(o);
+  });
+}
+
+function fillDropdown(id, values) {
+  const sel = document.getElementById(id);
+  while (sel.options.length > 1) sel.remove(1);
+  values.forEach(v => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v;
+    sel.appendChild(o);
+  });
+}
+
+function applyBankFilters() {
+  const subject  = document.getElementById('bpSubject').value;
+  const topic    = document.getElementById('bpTopic').value;
+  const examBody = document.getElementById('bpExamBody').value;
+  const year     = document.getElementById('bpYear').value;
+  const diff     = document.getElementById('bpDifficulty').value;
+  const search   = document.getElementById('bpSearch').value.trim().toLowerCase();
+
+  bpFiltered = bpAll.filter(q => {
+    if (subject  && q.subject_code   !== subject)  return false;
+    if (topic    && q.topic_code     !== topic)    return false;
+    if (examBody && q.exam_body_code !== examBody) return false;
+    if (year     && String(q.year)   !== String(year)) return false;
+    if (diff     && q.difficulty     !== diff)     return false;
+    if (search && !String(q.question_text || '').toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  bpPage = 1;
+  renderBankPicker();
+}
+
+function renderBankPicker() {
+  applyBankFilters_keepPage();  // re-apply filters, don't reset page here
+
+  const total      = bpFiltered.length;
+  const totalPages = Math.max(1, Math.ceil(total / BP_PER_PAGE));
+  if (bpPage > totalPages) bpPage = totalPages;
+
+  const start = (bpPage - 1) * BP_PER_PAGE;
+  const pageItems = bpFiltered.slice(start, start + BP_PER_PAGE);
+
+  document.getElementById('bpPageInfo').textContent =
+    total ? `Page ${bpPage} / ${totalPages} · ${total} match(es)` : '';
+  document.getElementById('bankPickerCount').textContent =
+    bpAll.length ? `(${bpAll.length} total in cloud bank)` : '';
+
+  const list = document.getElementById('bankPickerList');
+  if (!pageItems.length) {
+    list.innerHTML = `<div class="empty" style="padding:20px;">No questions match the filters.</div>`;
+    renderBankPagination(1, 1);
+    return;
+  }
+
+  list.innerHTML = pageItems.map(q => bankCardHtml(q)).join('');
+  renderBankPagination(bpPage, totalPages);
+  updateBpCounter();
+}
+
+// Only re-filters, does not reset the current page
+function applyBankFilters_keepPage() {
+  const subject  = document.getElementById('bpSubject').value;
+  const topic    = document.getElementById('bpTopic').value;
+  const examBody = document.getElementById('bpExamBody').value;
+  const year     = document.getElementById('bpYear').value;
+  const diff     = document.getElementById('bpDifficulty').value;
+  const search   = document.getElementById('bpSearch').value.trim().toLowerCase();
+
+  bpFiltered = bpAll.filter(q => {
+    if (subject  && q.subject_code   !== subject)  return false;
+    if (topic    && q.topic_code     !== topic)    return false;
+    if (examBody && q.exam_body_code !== examBody) return false;
+    if (year     && String(q.year)   !== String(year)) return false;
+    if (diff     && q.difficulty     !== diff)     return false;
+    if (search && !String(q.question_text || '').toLowerCase().includes(search)) return false;
+    return true;
+  });
+}
+
+function bankCardHtml(q) {
+  const code = q.question_code;
+  const sel  = bpSelected.has(code);
+  const imp  = q.already_imported;
+
+  const map = { A: q.option_a, B: q.option_b, C: q.option_c, D: q.option_d };
+  const correctLetter = String(q.correct_option || '').trim().toUpperCase();
+  const opts = ['A','B','C','D'].map(L => {
+    const text = map[L];
+    if (!text) return '';
+    const isCorrect = L === correctLetter;
+    return `<div style="font-size:12.5px;padding:2px 0;
+                ${isCorrect ? 'color:#047857;font-weight:600;' : 'color:#6B7280;'}">
+              ${isCorrect ? '✓ ' : '• '}${escapeHtml(String(text))}
+            </div>`;
+  }).join('');
+
+  const img = q.image_url
+    ? `<img src="${escapeHtml(q.image_url)}" alt=""
+            style="max-width:200px;border-radius:6px;display:block;margin:6px 0;" />`
+    : '';
+
+  return `
+    <div id="bp-${escapeHtml(code)}"
+         style="background:${sel ? '#EFF6FF' : '#fff'};
+                border:1px solid ${sel ? '#3B82F6' : '#E5E7EB'};
+                border-radius:10px;padding:12px 14px;margin-bottom:8px;
+                opacity:${imp ? 0.6 : 1};">
+      <label style="display:flex;gap:10px;align-items:flex-start;cursor:${imp ? 'not-allowed' : 'pointer'};">
+        <input type="checkbox" ${sel ? 'checked' : ''} ${imp ? 'disabled' : ''}
+               onchange="bpToggle('${escapeHtml(code)}')" style="margin-top:3px;" />
+        <div style="flex:1;">
+          <div style="font-size:11px;color:#6B7280;margin-bottom:4px;">
+         ${q.exam_body_name ? `<b>${escapeHtml(q.exam_body_name)}</b> · ` : (q.exam_body_code ? `<b>${escapeHtml(q.exam_body_code)}</b> · ` : '')}
+${q.subject_name   ? `${escapeHtml(q.subject_name)} · `   : (q.subject_code   ? `${escapeHtml(q.subject_code)} · `   : '')}
+${q.topic_name     ? `${escapeHtml(q.topic_name)} · `     : (q.topic_code     ? `${escapeHtml(q.topic_code)} · `     : '')}
+            ${q.year           ? `${escapeHtml(String(q.year))} · ` : ''}
+            ${q.difficulty     ? `<span style="background:#F3F4F6;padding:1px 6px;border-radius:8px;">${escapeHtml(q.difficulty)}</span>` : ''}
+            ${q.verified       ? ' · ✓ verified' : ''}
+            ${imp ? ' · <b style="color:#D97706;">already imported</b>' : ''}
+          </div>
+          <div style="font-size:13px;margin-bottom:6px;">${q.question_text || ''}</div>
+          ${img}
+          ${opts}
+        </div>
+      </label>
+    </div>
+  `;
+}
+
+function bpToggle(code) {
+  const q = bpAll.find(x => x.question_code === code);
+  if (!q || q.already_imported) return;
+
+  if (bpSelected.has(code)) {
+    bpSelected.delete(code);
+  } else {
+    if (bpSelected.size >= BP_MAX) {
+      alert(`Maximum ${BP_MAX} questions per import.`);
+      const cb = document.querySelector(`#bp-${code} input[type=checkbox]`);
+      if (cb) cb.checked = false;
+      return;
+    }
+    bpSelected.add(code);
+  }
+  renderBankPicker();
+}
+
+function bpSelectPage() {
+  const start = (bpPage - 1) * BP_PER_PAGE;
+  const pageItems = bpFiltered.slice(start, start + BP_PER_PAGE);
+  const selectable = pageItems.filter(q => !q.already_imported);
+
+  const allSel = selectable.length && selectable.every(q => bpSelected.has(q.question_code));
+  if (allSel) {
+    selectable.forEach(q => bpSelected.delete(q.question_code));
+  } else {
+    for (const q of selectable) {
+      if (bpSelected.size >= BP_MAX) break;
+      bpSelected.add(q.question_code);
+    }
+  }
+  renderBankPicker();
+}
+
+function bpClearSelection() {
+  bpSelected.clear();
+  renderBankPicker();
+}
+
+function updateBpCounter() {
+  const n = bpSelected.size;
+  document.getElementById('bpSelCounter').textContent = `${n} / ${BP_MAX} selected`;
+  document.getElementById('bpImportBtn').disabled = n === 0;
+}
+
+function renderBankPagination(page, total) {
+  const c = document.getElementById('bankPickerPagination');
+  if (total <= 1) { c.innerHTML = ''; return; }
+
+  let html = `<button class="btn btn-ghost" ${page<=1?'disabled':''}
+                    onclick="bpGoPage(${page-1})">‹ Prev</button>`;
+  html += `<span style="padding:8px 12px;font-size:13px;">Page ${page} / ${total}</span>`;
+  html += `<button class="btn btn-ghost" ${page>=total?'disabled':''}
+                    onclick="bpGoPage(${page+1})">Next ›</button>`;
+  c.innerHTML = html;
+}
+
+function bpGoPage(p) {
+  const total = Math.max(1, Math.ceil(bpFiltered.length / BP_PER_PAGE));
+  if (p < 1 || p > total) return;
+  bpPage = p;
+  renderBankPicker();
+  document.getElementById('bankPickerList').scrollTop = 0;
+}
+
+async function importFromBank() {
+  if (!bpSelected.size) return;
+
+  const payload = {
+    exam_code: examCode,
+    questions: bpAll.filter(q => bpSelected.has(q.question_code))
+  };
+
+  const btn = document.getElementById('bpImportBtn');
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = 'Importing…';
+
+  try {
+    const r = await fetch(`${API}/api/questions/import-from-bank`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await r.json();
+
+    if (data.success) {
+      let msg = data.message;
+      if (data.skipped_images && data.skipped_images.length) {
+        msg += `\n\n${data.skipped_images.length} image(s) failed to download.`;
+      }
+      alert(msg);
+      closeBankPicker();
+      await loadQuestions();
+    } else {
+      alert(data.message || 'Import failed.');
+    }
+  } catch (err) {
+    alert('Connection failed: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+</script>
+
+<script src="/sidebar.js"></script>
+<script src="/branding.js"></script>
+<script src="/question-images.js"></script>
+ </div>
+</body>
+</html>

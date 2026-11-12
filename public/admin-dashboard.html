@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee | Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="icon" type="image/png" href="/img/syncbee.png">
+<link rel="alternate icon" href="/favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { display: flex; height: 100vh; }
+
+  .sidebar {
+    width: 220px;
+    background: var(--navy);
+    color: white;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+
+  .header-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 26px; flex-wrap: wrap; gap: 10px; }
+  .header-row h1 { font-size: 22px; margin-bottom: 2px; }
+  .header-row .sub { color: var(--text-muted); font-size: 13px; }
+  .header-right { text-align: right; font-size: 12px; color: var(--text-muted); }
+  .header-right .time { font-size: 15px; font-weight: 700; color: var(--navy); font-family: monospace; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; margin-bottom: 26px; }
+  .stat-card { background: white; border-radius: 12px; padding: 16px 18px; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  .stat-card .num { font-size: 26px; font-weight: 700; color: var(--navy); }
+  .stat-card .label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  .panel-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; margin-bottom: 18px; }
+  .panel { background: white; border-radius: 14px; padding: 20px 22px; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  .panel h3 { font-size: 15px; margin-bottom: 14px; }
+
+  .live-exam-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .live-badge { background: var(--danger); color: white; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+  .progress-bar-outer { background: var(--bg); border-radius: 20px; height: 10px; overflow: hidden; margin: 14px 0; }
+  .progress-bar-inner { background: var(--emerald); height: 100%; transition: width 0.3s ease; }
+  .live-stats-row { display: flex; gap: 20px; font-size: 13px; }
+  .live-stats-row div strong { display: block; font-size: 18px; color: var(--navy); }
+  .no-live { text-align: center; color: var(--text-muted); padding: 30px 10px; font-size: 13px; }
+
+  .quick-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .quick-actions a { background: var(--bg); border-radius: 10px; padding: 14px; text-align: center; font-size: 13px; font-weight: 600; color: var(--navy); text-decoration: none; }
+  .quick-actions a:hover { background: #EEF2F7; }
+
+  .activity-item { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+  .activity-time { color: var(--text-muted); font-size: 11px; }
+
+  .info-list { font-size: 13px; }
+  .info-list .row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); }
+  .info-list .row:last-child { border-bottom: none; }
+  .info-list .row strong { color: var(--navy); }
+
+  .security-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; }
+  .security-row .ok { color: var(--emerald-dark); }
+  .security-row .pending { color: var(--text-muted); }
+
+  .btn-primary { background: var(--navy); color: white; border: none; border-radius: 8px; padding: 9px 14px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+  .btn-primary:hover:not(:disabled) { opacity: 0.88; }
+  .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  .alert-grid { margin-top: -12px; }
+  .alert-card { position: relative; display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px; border-radius: 12px; background: white; border-left: 4px solid; font-size: 13px; box-shadow: 0 1px 4px rgba(15,38,71,0.06); animation: alert-glow 2s ease-in-out infinite; }
+  .alert-card .icon { font-size: 18px; line-height: 1; margin-top: 2px; flex-shrink: 0; }
+  .alert-card .body { flex: 1; min-width: 0; }
+  .alert-card .title { font-weight: 700; margin-bottom: 2px; font-size: 13px; }
+  .alert-card .detail { color: var(--text-muted); font-size: 11.5px; line-height: 1.35; }
+  .alert-card .action { font-size: 11px; font-weight: 700; text-decoration: none; white-space: nowrap; margin-top: 6px; display: inline-block; }
+  .alert-card .close { background: none; border: none; font-size: 16px; line-height: 1; cursor: pointer; color: var(--text-muted); padding: 0 2px; flex-shrink: 0; }
+  .alert-card .close:hover { color: var(--navy); }
+  .alert-card.red { border-color: var(--danger); background: #FEF2F2; }
+  .alert-card.red .title, .alert-card.red .action { color: var(--danger); }
+  .alert-card.orange { border-color: var(--orange); background: #FFF7ED; }
+  .alert-card.orange .title, .alert-card.orange .action { color: #C2410C; }
+  .alert-card.yellow { border-color: #CA8A04; background: #FEFCE8; }
+  .alert-card.yellow .title, .alert-card.yellow .action { color: #854D0E; }
+  @keyframes alert-glow {
+    0%, 100% { box-shadow: 0 1px 4px rgba(15,38,71,0.06), 0 0 0 0 var(--glow-color, rgba(0,0,0,0)); }
+    50%      { box-shadow: 0 1px 4px rgba(15,38,71,0.06), 0 0 14px 3px var(--glow-color, rgba(0,0,0,0)); }
+  }
+  .alert-card.red    { --glow-color: rgba(220, 38, 38, 0.55); }
+  .alert-card.orange { --glow-color: rgba(249, 115, 22, 0.55); }
+  .alert-card.yellow { --glow-color: rgba(202, 138, 4, 0.45); animation-duration: 2.8s; }
+  @media (prefers-reduced-motion: reduce) {
+    .alert-card { animation: none; }
+    .alert-card.red    { box-shadow: 0 0 12px 2px rgba(220,38,38,0.45); }
+    .alert-card.orange { box-shadow: 0 0 12px 2px rgba(249,115,22,0.45); }
+    .alert-card.yellow { box-shadow: 0 0 12px 2px rgba(202,138,4,0.35); }
+  }
+
+  .sched-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .sched-item:last-child { border-bottom: none; }
+  .sched-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .sched-item.ongoing   .sched-dot { background: var(--emerald); box-shadow: 0 0 0 4px rgba(16,185,129,0.15); }
+  .sched-item.upcoming  .sched-dot { background: #94A3B8; }
+  .sched-item.completed .sched-dot { background: var(--border); }
+  .sched-body { flex: 1; min-width: 0; }
+  .sched-title { font-weight: 600; font-size: 14px; color: var(--navy); margin-bottom: 3px; }
+  .sched-meta  { font-size: 12px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 10px; }
+  .sched-meta strong { color: var(--navy); font-weight: 600; }
+  .sched-when  { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+  .sched-when.ongoing   { background: #ECFDF5; color: var(--emerald-dark); }
+  .sched-when.upcoming  { background: #F1F5F9; color: #475569; }
+  .sched-when.completed { background: var(--bg);    color: var(--text-muted); }
+  .sched-empty { text-align: center; color: var(--text-muted); padding: 24px 10px; font-size: 13px; }
+
+  .inc-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; text-decoration: none; color: inherit; }
+  .inc-row:last-child { border-bottom: none; }
+  .inc-row:hover .inc-label { color: var(--navy); }
+  .inc-label { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+  .inc-sev { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .inc-sev.red    { background: var(--danger); }
+  .inc-sev.orange { background: var(--orange); }
+  .inc-sev.yellow { background: #CA8A04; }
+  .inc-sev.grey   { background: #94A3B8; }
+  .inc-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .inc-count { font-weight: 700; color: var(--navy); }
+  .inc-empty { text-align: center; color: var(--text-muted); padding: 18px 10px; font-size: 13px; }
+  .inc-empty .ok { color: var(--emerald-dark); font-weight: 600; }
+
+  .checkin-bars {
+  display: flex; gap: 8px; margin: 12px 0;
+}
+.checkin-bar {
+  flex: 1; padding: 10px 12px; border-radius: 8px; text-align: center;
+}
+.checkin-bar .n { font-size: 20px; font-weight: 700; display: block; }
+.checkin-bar .l { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.checkin-bar.green  { background: #ECFDF5; }
+.checkin-bar.green  .n { color: var(--emerald-dark); }
+.checkin-bar.yellow { background: #FEFCE8; }
+.checkin-bar.yellow .n { color: #854D0E; }
+.checkin-bar.red    { background: #FEF2F2; }
+.checkin-bar.red    .n { color: var(--danger); }
+.checkin-bar.grey   { background: var(--bg); }
+.checkin-bar.grey   .n { color: var(--text-muted); }
+
+.checkin-names {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  max-height: 140px;
+  overflow-y: auto;
+}
+.checkin-names .name {
+  display: inline-block;
+  background: var(--bg);
+  padding: 3px 8px;
+  border-radius: 12px;
+  margin: 2px 4px 2px 0;
+}
+
+.res-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.res-row:last-child { border-bottom: none; }
+.res-label { color: var(--text-muted); }
+.res-value { font-weight: 700; color: var(--navy); display: flex; align-items: center; gap: 6px; }
+
+.res-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.res-dot.green  { background: var(--emerald); }
+.res-dot.yellow { background: var(--orange); }
+.res-dot.red    { background: var(--danger); }
+
+.theory-pending-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.theory-pending-dot.green  { background: var(--emerald); }
+.theory-pending-dot.yellow { background: var(--orange); }
+.theory-pending-dot.red    { background: var(--danger); }
+</style>
+</head>
+<body class="has-sidebar">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+
+    <div class="header-row">
+      <div>
+        <h1 id="welcomeMsg">Welcome back, Admin</h1>
+        <div class="sub">Mariobee SyncBee Examination Control Center · v1.0.0</div>
+      </div>
+      <div class="header-right">
+        <div class="time" id="clockDisplay">--:--:--</div>
+        <div id="dateDisplay"></div>
+      </div>
+    </div>
+
+    <div class="stats-grid" id="statsGrid"></div>
+    <div class="stats-grid alert-grid" id="alertGrid"></div>
+
+    <div class="panel-grid">
+      <div class="panel">
+        <div class="live-exam-head">
+          <h3 style="margin:0">Live Exam Monitor</h3>
+          <span id="liveBadge"></span>
+        </div>
+        <div id="liveExamContent"></div>
+      </div>
+
+      <div class="panel" style="margin-top:18px;">
+        <div class="live-exam-head">
+          <h3 style="margin:0">Today's Schedule</h3>
+          <span id="scheduleSummary" style="font-size:12px; color:var(--text-muted);"></span>
+        </div>
+        <div id="scheduleList"></div>
+      </div>
+
+      <div class="panel" id="checkinPanel" style="margin-top:18px; display:none;">
+  <div class="live-exam-head">
+    <h3 style="margin:0">Candidate Check-in</h3>
+    <span id="checkinExamTitle" style="font-size:12px; color:var(--text-muted);"></span>
+  </div>
+  <div id="checkinContent"></div>
+</div>
+
+      <div class="panel">
+        <h3>Quick Actions</h3>
+        <div class="quick-actions">
+          <a href="/admin-exams">+ Create Exam</a>
+          <a href="/admin-students">Manage Students</a>
+          <a href="/admin-monitor">Monitor Exam</a>
+          <a href="/admin-results">View Results</a>
+          <a href="/sync">Synchronize</a>
+          <a href="/admin-branding">Settings</a>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Connected Devices</h3>
+        <div class="info-list" id="connectedInfo"></div>
+      </div>
+    </div>
+
+    <div class="panel-grid">
+      <div class="panel">
+        <h3>Recent Activity</h3>
+        <div id="activityList"></div>
+      </div>
+
+      <div>
+        <div class="panel" style="margin-bottom:18px;">
+          <h3>Network — Student Access</h3>
+          <div class="info-list" id="networkInfo"></div>
+        </div>
+
+        <div class="panel" style="margin-bottom:18px;">
+          <h3>Sync Status</h3>
+          <div class="info-list" id="syncInfo"></div>
+        </div>
+
+        <div class="panel" style="margin-bottom:18px;">
+          <h3>License</h3>
+          <div class="info-list" id="licenseInfo"></div>
+        </div>
+
+        <div class="panel" style="margin-bottom:18px;">
+          <h3>Database Backups</h3>
+          <div class="info-list" id="backupInfo"></div>
+          <button id="backupNowBtn" class="btn-primary" style="margin-top:12px; width:100%;">
+            Create Backup Now
+          </button>
+        </div>
+
+        <div class="panel" style="margin-bottom:18px;">
+          <div class="live-exam-head">
+            <h3 style="margin:0">Incidents — Last 24h</h3>
+            <span id="incidentsTotal" style="font-size:12px; color:var(--text-muted);"></span>
+          </div>
+          <div id="incidentsBreakdown"></div>
+        </div>
+
+        <div class="panel" style="margin-bottom:18px;">
+  <div class="live-exam-head">
+    <h3 style="margin:0">Server Resources</h3>
+    <span id="resourcesUptime" style="font-size:11px; color:var(--text-muted);"></span>
+  </div>
+  <div id="resourcesBody" class="info-list"></div>
+</div>
+
+<div class="panel" style="margin-bottom:18px;">
+  <div class="live-exam-head">
+    <h3 style="margin:0">Theory Grading</h3>
+    <span id="theoryBadge" style="font-size:11px;"></span>
+  </div>
+  <div id="theoryBody" class="info-list"></div>
+  <a href="/admin-grading" class="btn-primary"
+     style="display:block; text-align:center; margin-top:12px; text-decoration:none; font-size:13px;">
+    Open Grading →
+  </a>
+</div>
+
+        <div class="panel">
+          <h3>Security Monitoring</h3>
+          <div id="securityInfo"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const API = window.location.origin;
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+function timeAgo(sqlDateTime) {
+  if (!sqlDateTime) return 'Never';
+  const d = new Date(String(sqlDateTime).replace(' ', 'T') + 'Z');
+  const diffMin = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (diffMin < 1)  return 'Just now';
+  if (diffMin < 60) return `${diffMin} min ago`;
+  if (diffMin < 1440) return `${Math.floor(diffMin / 60)} hr ago`;
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+}
+
+function theoryAgeLabel(seconds) {
+  if (seconds === null || seconds === undefined) return '—';
+  if (seconds < 3600)   return `${Math.floor(seconds / 60)}m`;
+  if (seconds < 86400)  return `${Math.floor(seconds / 3600)}h`;
+  return `${Math.floor(seconds / 86400)}d`;
+}
+
+async function loadTheoryGrading() {
+  const body  = document.getElementById('theoryBody');
+  const badge = document.getElementById('theoryBadge');
+
+  try {
+    const res = await fetch(`${API}/api/dashboard/theory-grading`);
+    const d   = await res.json();
+
+    // Header badge — colour by urgency
+    let badgeHtml = '';
+    if (d.pending > 0) {
+      const dot = d.pending >= 50 ? 'red' : d.pending >= 10 ? 'yellow' : 'green';
+      badgeHtml = `<span class="theory-pending-dot ${dot}"></span>${d.pending} pending`;
+    }
+    badge.innerHTML = badgeHtml;
+
+    // Body rows
+    body.innerHTML = `
+      <div class="row">
+        <span>Pending answers</span>
+        <strong style="${d.pending > 0 ? 'color:#C2410C;' : ''}">${d.pending}</strong>
+      </div>
+      <div class="row">
+        <span>In progress</span>
+        <strong>${d.in_progress}</strong>
+      </div>
+      <div class="row">
+        <span>Marked (last 7d)</span>
+        <strong>${d.marked_week}</strong>
+      </div>
+      <div class="row">
+        <span>Oldest pending</span>
+        <strong>${theoryAgeLabel(d.oldest_seconds)}</strong>
+      </div>
+    `;
+  } catch (err) {
+    body.innerHTML = `<div class="no-live">Unable to load theory grading status.</div>`;
+    badge.innerHTML = '';
+  }
+}
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clockDisplay').textContent = now.toLocaleTimeString('en-GB');
+  document.getElementById('dateDisplay').textContent = now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+async function loadSummary() {
+  const res = await fetch(`${API}/api/dashboard/summary`);
+  const d = await res.json();
+  const cards = [
+    ['Total Exams', d.total_exams], ['Published Exams', d.published_exams],
+    ['Active Exams', d.active_exams], ['Total Students', d.total_students],
+    ['Completed Attempts', d.completed_attempts], ['Pending Sync', d.pending_sync],
+    ['Exam Incidents', d.total_incidents], ['Total Subjects', d.total_subjects]
+  ];
+  document.getElementById('statsGrid').innerHTML = cards.map(([label, num]) =>
+    `<div class="stat-card"><div class="num">${num}</div><div class="label">${label}</div></div>`
+  ).join('');
+}
+
+async function loadLiveExam() {
+  const res = await fetch(`${API}/api/dashboard/monitor/exams`);
+  const d = await res.json();
+  const badge = document.getElementById('liveBadge');
+  const content = document.getElementById('liveExamContent');
+
+  if (!d.active) {
+    badge.innerHTML = '';
+    content.innerHTML = `<div class="no-live">No exam is currently active.</div>`;
+    return;
+  }
+
+  badge.innerHTML = '<span class="live-badge">● LIVE</span>';
+  const pct = d.candidates > 0 ? Math.round((d.completed / d.candidates) * 100) : 0;
+
+  content.innerHTML = `
+    <div style="font-weight:700; font-size:15px; margin-bottom:4px;">${escapeHtml(d.exam_title)}</div>
+    <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">${d.start_time} → ${d.end_time}</div>
+    <div class="progress-bar-outer"><div class="progress-bar-inner" style="width:${pct}%"></div></div>
+    <div class="live-stats-row">
+      <div><strong>${d.candidates}</strong>Candidates</div>
+      <div><strong>${d.writing}</strong>Writing</div>
+      <div><strong>${d.completed}</strong>Completed</div>
+      <div><strong>${d.incidents}</strong>Incidents</div>
+    </div>`;
+}
+
+async function loadConnected() {
+  const res = await fetch(`${API}/api/system/connected`);
+  const d = await res.json();
+  const c = d.counts;
+
+  const rows = d.sessions
+    .filter(s => s.role === 'student')
+    .slice(0, 10)
+    .map(s => `
+      <div class="row">
+        <span>${escapeHtml(s.full_name || s.student_id)}</span>
+        <strong>${s.role}</strong>
+      </div>`)
+    .join('');
+
+  document.getElementById('connectedInfo').innerHTML = `
+    <div class="row"><span>Students online</span><strong>${c.students}</strong></div>
+    <div class="row"><span>Admins online</span><strong>${c.admins}</strong></div>
+    <div class="row"><span>Total sessions</span><strong>${c.total}</strong></div>
+    ${rows}
+  `;
+}
+
+async function loadActivity() {
+  const res = await fetch(`${API}/api/dashboard/activity`);
+  const items = await res.json();
+  const container = document.getElementById('activityList');
+
+  if (items.length === 0) {
+    container.innerHTML = `<div class="no-live">No recent activity yet.</div>`;
+    return;
+  }
+
+  const typeMeta = {
+    exam_created: { color: 'var(--navy)', text: l => `Exam created: ${l}` },
+    attempt_started: { color: '#1E40AF', text: l => `Student started exam ${l}` },
+    attempt_submitted: { color: 'var(--emerald)', text: l => `Student submitted exam ${l}` },
+    incident: { color: 'var(--danger)', text: l => `Incident detected: ${l}` },
+    sync: { color: 'var(--orange)', text: l => `Sync completed (${l})` }
+  };
+
+  container.innerHTML = items.map(item => {
+    const meta = typeMeta[item.type];
+    return `
+      <div class="activity-item">
+        <div class="activity-dot" style="background:${meta.color}"></div>
+        <div>
+          <div>${escapeHtml(meta.text(item.label))}</div>
+          <div class="activity-time">${timeAgo(item.at)}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function loadNetwork() {
+  const res = await fetch(`${API}/api/system/network-info`);
+  const d = await res.json();
+  const container = document.getElementById('networkInfo');
+
+  if (d.addresses.length === 0) {
+    container.innerHTML = `<div class="row"><span>Status</span><strong style="color:var(--danger)">No network</strong></div>`;
+    return;
+  }
+
+  const rows = d.addresses.map(a => {
+    const label = a.interface.toLowerCase().includes('wi') ? 'WiFi' : a.interface.toLowerCase().includes('eth') ? 'Ethernet' : a.interface;
+    return `<div class="row"><span>${escapeHtml(label)}</span><strong>${a.address}:${d.port}</strong></div>`;
+  }).join('');
+
+  container.innerHTML = rows + `<div class="row"><span>Status</span><strong style="color:var(--emerald-dark)">Connected</strong></div>`;
+}
+
+async function loadSyncStatus() {
+  const res = await fetch(`${API}/api/dashboard/sync-status`);
+  const d = await res.json();
+  document.getElementById('syncInfo').innerHTML = `
+    <div class="row"><span>Pending Upload</span><strong>${d.pending_upload} result(s)</strong></div>
+    <div class="row"><span>Last Result Sync</span><strong>${timeAgo(d.last_result_sync)}</strong></div>
+    <div class="row"><span>Last Master-Data Sync</span><strong>${timeAgo(d.last_master_sync)}</strong></div>`;
+}
+
+async function loadLicense() {
+  try {
+    const res = await fetch(`${API}/api/license/status`);
+    const d = await res.json();
+    const daysLeft = d.expiry ? Math.ceil((new Date(d.expiry) - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+    document.getElementById('licenseInfo').innerHTML = `
+            <div class="row"><span>Status</span><strong style="color:${d.valid ? 'var(--emerald-dark)' : (d.mode === 'read_only' ? 'var(--orange-dark)' : 'var(--danger)')}">${d.valid ? 'Active' : (d.mode === 'read_only' ? 'Read-only' : 'Locked')}</strong></div>
+      <div class="row"><span>Expiry</span><strong>${d.expiry ? d.expiry.slice(0, 10) : '—'}</strong></div>
+      <div class="row"><span>Days Remaining</span><strong>${daysLeft !== null ? daysLeft : '—'}</strong></div>`;
+  } catch (e) {
+    document.getElementById('licenseInfo').innerHTML = `<div class="no-live">Unable to load license info.</div>`;
+  }
+}
+
+function loadSecurity() {
+  const items = [
+    ['Heartbeat Monitoring', true], ['Tab Switch Detection', true], ['Incident Logging', true],
+    ['Fullscreen Monitoring', true], ['Device Tracking', false]
+  ];
+  document.getElementById('securityInfo').innerHTML = items.map(([label, enabled]) =>
+    `<div class="security-row"><span class="${enabled ? 'ok' : 'pending'}">${enabled ? '✓' : '○'}</span> ${label}${enabled ? '' : ' <span style="color:var(--text-muted);font-size:11px;">(not yet enabled)</span>'}</div>`
+  ).join('');
+}
+
+const dismissedAlerts = new Set(
+  JSON.parse(sessionStorage.getItem('dismissedAlerts') || '[]')
+);
+
+function renderAlerts(alerts) {
+  const visible = alerts.filter(a => !dismissedAlerts.has(a.id));
+  const grid = document.getElementById('alertGrid');
+
+  if (visible.length === 0) {
+    grid.style.display = 'none';
+    grid.innerHTML = '';
+    return;
+  }
+
+  const icons = { red: '⛔', orange: '⚠️', yellow: 'ℹ️' };
+
+  grid.style.display = 'grid';
+  grid.innerHTML = visible.map(a => `
+    <div class="alert-card ${a.severity}">
+      <span class="icon">${icons[a.severity] || 'ℹ️'}</span>
+      <div class="body">
+        <div class="title">${escapeHtml(a.title)}</div>
+        ${a.detail ? `<div class="detail">${escapeHtml(a.detail)}</div>` : ''}
+        ${a.link ? `<a class="action" href="${a.link}">Open →</a>` : ''}
+      </div>
+      <button class="close" data-alert-id="${a.id}" title="Dismiss">×</button>
+    </div>
+  `).join('');
+
+  grid.querySelectorAll('.close').forEach(btn => {
+    btn.addEventListener('click', () => {
+      dismissedAlerts.add(btn.dataset.alertId);
+      sessionStorage.setItem('dismissedAlerts', JSON.stringify([...dismissedAlerts]));
+      renderAlerts(alerts);
+    });
+  });
+}
+
+async function loadAlerts() {
+  try {
+    const res = await fetch(`${API}/api/system/alerts`);
+    if (!res.ok) return;
+    const data = await res.json();
+    renderAlerts(data.alerts || []);
+  } catch (_) {}
+}
+
+function relativeWhen(exam) {
+  const m = exam.minutes_until_start;
+  const e = exam.minutes_until_end;
+
+  if (exam.phase === 'ongoing') {
+    if (e <= 0)  return 'ending';
+    if (e < 60)  return `ends in ${e} min`;
+    return `ends in ${Math.floor(e / 60)}h ${e % 60}m`;
+  }
+  if (exam.phase === 'upcoming') {
+    if (m <= 0)  return 'starting';
+    if (m < 60)  return `starts in ${m} min`;
+    if (m < 1440) return `starts in ${Math.floor(m / 60)}h ${m % 60}m`;
+    return `in ${Math.floor(m / 1440)}d`;
+  }
+  if (e > -60)  return `finished ${Math.abs(e)} min ago`;
+  if (e > -1440) return `finished ${Math.floor(Math.abs(e) / 60)}h ago`;
+  return 'finished';
+}
+
+async function loadTodaySchedule() {
+  const list = document.getElementById('scheduleList');
+  const summary = document.getElementById('scheduleSummary');
+
+  try {
+    const res = await fetch(`${API}/api/dashboard/today-schedule`);
+    const d = await res.json();
+
+    if (!d.exams || d.exams.length === 0) {
+      summary.textContent = '';
+      list.innerHTML = `<div class="sched-empty">No exams scheduled today.</div>`;
+      return;
+    }
+
+    summary.textContent = `${d.total_today} exam${d.total_today === 1 ? '' : 's'} · ${d.total_candidates} candidate${d.total_candidates === 1 ? '' : 's'}`;
+
+    list.innerHTML = d.exams.map(exam => {
+      const t = (s) => String(s).slice(11, 16);
+      const href = exam.phase === 'completed'
+        ? `/admin-results?exam=${encodeURIComponent(exam.exam_code)}`
+        : `/admin-monitor?exam=${encodeURIComponent(exam.exam_code)}`;
+
+      return `
+        <a href="${href}" class="sched-item ${exam.phase}" style="text-decoration:none; color:inherit;">
+          <div class="sched-dot"></div>
+          <div class="sched-body">
+            <div class="sched-title">${escapeHtml(exam.exam_title)}</div>
+            <div class="sched-meta">
+              <span>${t(exam.start_time)} – ${t(exam.end_time)}</span>
+              <span><strong>${exam.started_attempts}</strong>/${exam.expected_candidates} candidates</span>
+            </div>
+          </div>
+          <span class="sched-when ${exam.phase}">${relativeWhen(exam)}</span>
+        </a>
+      `;
+    }).join('');
+
+  } catch (err) {
+    summary.textContent = '';
+    list.innerHTML = `<div class="sched-empty">Unable to load schedule.</div>`;
+  }
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let i = 0, n = bytes;
+  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  return `${n.toFixed(n < 10 ? 1 : 0)} ${units[i]}`;
+}
+
+async function loadBackups() {
+  const container = document.getElementById('backupInfo');
+  try {
+    const res = await fetch(`${API}/api/system/backups`);
+    const d = await res.json();
+
+    const lastOk  = d.last_success_at ? timeAgo(d.last_success_at) : 'Never';
+    const lastErr = d.last_failure_at
+      ? `<span style="color:var(--danger)">${timeAgo(d.last_failure_at)}</span>`
+      : '—';
+
+    container.innerHTML = `
+      <div class="row"><span>Last Backup</span><strong>${lastOk}</strong></div>
+      <div class="row"><span>Backups Stored</span><strong>${d.backups.filter(b => b.status === 'success').length} / ${d.retention}</strong></div>
+      <div class="row"><span>Total Size</span><strong>${formatBytes(d.total_bytes)}</strong></div>
+      <div class="row"><span>Last Failure</span><strong>${lastErr}</strong></div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<div class="no-live">Unable to load backup status.</div>`;
+  }
+}
+
+function formatBytesShort(bytes) {
+  if (!bytes || bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let i = 0, n = bytes;
+  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  return `${n.toFixed(n < 10 ? 1 : 0)} ${units[i]}`;
+}
+
+function formatUptime(seconds) {
+  if (!seconds || seconds < 0) return '—';
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+function cpuDot(pct) {
+  if (pct >= 90) return 'red';
+  if (pct >= 70) return 'yellow';
+  return 'green';
+}
+function memDot(pct) {
+  if (pct >= 90) return 'red';
+  if (pct >= 80) return 'yellow';
+  return 'green';
+}
+function diskDot(pctUsed) {
+  if (pctUsed >= 95) return 'red';
+  if (pctUsed >= 85) return 'yellow';
+  return 'green';
+}
+
+async function loadResources() {
+  const container = document.getElementById('resourcesBody');
+  const uptimeEl  = document.getElementById('resourcesUptime');
+  try {
+    const res = await fetch(`${API}/api/system/resources`);
+    const d = await res.json();
+
+    uptimeEl.textContent = `up ${formatUptime(d.uptime_seconds)}`;
+
+    const memPct  = d.memory.percent;
+    const diskPct = d.disk.percent;
+    const cpuPct  = d.cpu.percent;
+
+    container.innerHTML = `
+      <div class="res-row">
+        <span class="res-label">CPU Load</span>
+        <span class="res-value">
+          <span class="res-dot ${cpuDot(cpuPct)}"></span>
+          ${cpuPct}% · ${d.cpu.cores} cores
+        </span>
+      </div>
+      <div class="res-row">
+        <span class="res-label">Memory</span>
+        <span class="res-value">
+          <span class="res-dot ${memDot(memPct)}"></span>
+          ${formatBytesShort(d.memory.used)} / ${formatBytesShort(d.memory.total)} (${memPct}%)
+        </span>
+      </div>
+      <div class="res-row">
+        <span class="res-label">Disk</span>
+        <span class="res-value">
+          <span class="res-dot ${diskDot(diskPct)}"></span>
+          ${formatBytesShort(d.disk.free)} free (${diskPct}% used)
+        </span>
+      </div>
+           <div class="res-row">
+        <span class="res-label">App memory</span>
+        <span class="res-value">${formatBytesShort(d.node.rss)}</span>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<div class="no-live">Unable to load server resources.</div>`;
+    uptimeEl.textContent = '';
+  }
+}
+
+async function runBackupNow() {
+  const btn = document.getElementById('backupNowBtn');
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = 'Backing up…';
+
+  try {
+    const res = await fetch(`${API}/api/system/backup`, { method: 'POST' });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || 'Backup failed');
+    btn.textContent = '✓ Backup created';
+    loadBackups();
+    loadAlerts();
+    setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 2000);
+  } catch (err) {
+    btn.textContent = '✗ ' + err.message;
+    setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 3000);
+  }
+}
+document.getElementById('backupNowBtn')?.addEventListener('click', runBackupNow);
+
+const INCIDENT_META = {
+  tab_switch:         { label: 'Tab switch',         severity: 'orange' },
+  visibility_change:  { label: 'Tab hidden',         severity: 'orange' },
+  fullscreen_exit:    { label: 'Fullscreen exit',    severity: 'red'    },
+  window_blur:        { label: 'Window unfocused',   severity: 'yellow' },
+  network_lost:       { label: 'Network lost',       severity: 'yellow' },
+  network_restored:   { label: 'Network restored',   severity: 'grey'   },
+  shortcut:           { label: 'Suspicious shortcut',severity: 'orange' },
+  keyboard_shortcut:  { label: 'Suspicious shortcut',severity: 'orange' },
+  multiple_logins:    { label: 'Multiple logins',    severity: 'red'    },
+  copy_paste:         { label: 'Copy / paste attempt', severity: 'red'  },
+  right_click:        { label: 'Right-click',        severity: 'yellow' }
+};
+
+function incidentMeta(type) {
+  return INCIDENT_META[type] || {
+    label: type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+    severity: 'grey'
+  };
+}
+
+async function loadIncidentsBreakdown() {
+  const list = document.getElementById('incidentsBreakdown');
+  const totalEl = document.getElementById('incidentsTotal');
+
+  try {
+    const res = await fetch(`${API}/api/dashboard/incidents-breakdown`);
+    const d = await res.json();
+
+    if (!d.breakdown || d.breakdown.length === 0) {
+      totalEl.textContent = '';
+      list.innerHTML = `<div class="inc-empty"><span class="ok">✓</span> No incidents in the last 24 hours.</div>`;
+      return;
+    }
+
+    totalEl.textContent = `${d.total_24h} total · ${d.total_all_time} all-time`;
+
+    list.innerHTML = d.breakdown.map(row => {
+      const meta = incidentMeta(row.incident_type);
+      const href = `/admin-incidents?type=${encodeURIComponent(row.incident_type)}`;
+      return `
+        <a class="inc-row" href="${href}">
+          <span class="inc-label">
+            <span class="inc-sev ${meta.severity}"></span>
+            <span class="inc-name">${escapeHtml(meta.label)}</span>
+          </span>
+          <span class="inc-count">${row.count}</span>
+        </a>
+      `;
+    }).join('');
+
+  } catch (err) {
+    totalEl.textContent = '';
+    list.innerHTML = `<div class="inc-empty">Unable to load incidents.</div>`;
+  }
+}
+
+async function loadCheckinStatus() {
+  const panel = document.getElementById('checkinPanel');
+  const titleEl = document.getElementById('checkinExamTitle');
+  const content = document.getElementById('checkinContent');
+
+  try {
+    const res = await fetch(`${API}/api/dashboard/checkin-status`);
+    const d = await res.json();
+
+    if (!d.active) {
+      panel.style.display = 'none';
+      return;
+    }
+
+    panel.style.display = 'block';
+    titleEl.textContent = d.exam.exam_title;
+
+    const { expected, connected, stale, not_seen } = d.counts;
+    const pct = expected > 0 ? Math.round((connected / expected) * 100) : 0;
+
+    const band = pct >= 90 ? 'green' : pct >= 50 ? 'yellow' : 'red';
+
+    const namesHtml = d.not_seen_sample.length
+      ? `<div class="checkin-names"><strong style="color:var(--navy)">Not yet connected:</strong><br>${
+          d.not_seen_sample.map(s => `<span class="name">${escapeHtml(s.firstname)} ${escapeHtml(s.lastname)}</span>`).join('')
+        }${not_seen > d.not_seen_sample.length ? `<span class="name">+${not_seen - d.not_seen_sample.length} more</span>` : ''}</div>`
+      : '';
+
+    const staleHtml = d.stale_sample.length
+      ? `<div class="checkin-names"><strong style="color:#C2410C">Dropped off:</strong><br>${
+          d.stale_sample.map(s => `<span class="name">${escapeHtml(s.student_id)} · ${s.age_minutes}m</span>`).join('')
+        }</div>`
+      : '';
+
+    content.innerHTML = `
+      <div class="checkin-bars">
+        <div class="checkin-bar ${band}"><span class="n">${connected}</span><span class="l">Connected</span></div>
+        <div class="checkin-bar grey"><span class="n">${not_seen}</span><span class="l">Not yet</span></div>
+        <div class="checkin-bar ${stale > 0 ? 'yellow' : 'grey'}"><span class="n">${stale}</span><span class="l">Dropped off</span></div>
+        <div class="checkin-bar grey"><span class="n">${expected}</span><span class="l">Expected</span></div>
+      </div>
+      ${namesHtml}
+      ${staleHtml}
+    `;
+
+  } catch (err) {
+    panel.style.display = 'none';
+  }
+}
+
+async function checkAdminSession() {
+  try {
+    const res = await fetch(`${API}/api/auth/admin-me`);
+    const data = await res.json();
+    if (!data.success) { window.location.href = '/admin-login'; return; }
+
+    document.getElementById('welcomeMsg').textContent = `Welcome back, Admin`;
+
+    // First paint
+    loadSummary();
+    loadLiveExam();
+    loadActivity();
+    loadNetwork();
+    loadSyncStatus();
+    loadLicense();
+    loadSecurity();
+    loadBackups();
+    loadAlerts();
+    loadTodaySchedule();
+    loadIncidentsBreakdown();
+    loadConnected();
+    loadResources();
+    loadTheoryGrading();
+setInterval(loadTheoryGrading, 60000);
+
+
+    // Polling
+    setInterval(loadConnected,            10000);
+    setInterval(loadAlerts,               30000);
+    setInterval(loadTodaySchedule,        60000);
+    setInterval(loadIncidentsBreakdown,   60000);
+  } catch (err) {
+    window.location.href = '/admin-login';
+  }
+}
+
+checkAdminSession();
+</script>
+<script src="/sidebar.js"></script>
+<script src="/branding.js"></script>
+</body>
+</html>

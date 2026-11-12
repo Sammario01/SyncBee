@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — License</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  body { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--navy); }
+  .card { background: white; border-radius: 18px; padding: 40px 36px; max-width: 460px; width: 100%; text-align: center; }
+  .icon { font-size: 44px; margin-bottom: 12px; }
+  h2 { font-size: 20px; margin-bottom: 10px; }
+  .msg { color: var(--text-muted); font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
+  .actions { display: flex; flex-direction: column; gap: 10px; }
+  .status-line { font-size: 12px; color: var(--text-muted); margin-top: 14px; min-height: 16px; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="icon">🔒</div>
+  <h2>License not active</h2>
+  <div class="msg" id="msg">Checking...</div>
+  <div class="actions">
+    <button class="btn btn-primary" id="recheckBtn" onclick="recheck()">Check again</button>
+    <a class="btn btn-ghost" href="/activate">Activate this computer again</a>
+  </div>
+  <div class="status-line" id="statusLine"></div>
+</div>
+
+<script>
+const API = window.location.origin;
+
+function go(mode) {
+  if (mode === 'full' || mode === 'read_only') window.location.href = '/admin-login';
+  else if (mode === 'unactivated') window.location.href = '/activate';
+}
+
+async function load() {
+  try {
+    const res = await fetch(`${API}/api/license/public-status`);
+    const s = await res.json();
+    if (s.mode !== 'locked') { go(s.mode); return; }
+    document.getElementById('msg').textContent = s.message;
+  } catch (err) {
+    document.getElementById('msg').textContent = 'Could not read the license status.';
+  }
+}
+
+async function recheck() {
+  const btn = document.getElementById('recheckBtn');
+  btn.disabled = true;
+  btn.textContent = 'Checking...';
+  try {
+    const res = await fetch(`${API}/api/license/recheck`, { method: 'POST' });
+    const s = await res.json();
+    if (s.mode !== 'locked') { go(s.mode); return; }
+    document.getElementById('msg').textContent = s.message;
+    document.getElementById('statusLine').textContent = 'Still not active. Last checked just now.';
+  } catch (err) {
+    document.getElementById('statusLine').textContent = 'Could not reach the license server.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Check again';
+  }
+}
+
+load();
+</script>
+<script src="/branding.js"></script>
+</body>
+</html>

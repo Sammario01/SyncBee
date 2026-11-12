@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Result Slip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  body { background: #f0f2f5; padding: 40px 20px; }
+  .slip {
+    background: white; max-width: 600px; margin: 0 auto; padding: 50px 50px 40px;
+    border-radius: 4px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  .slip-header { text-align: center; border-bottom: 3px solid var(--navy); padding-bottom: 20px; margin-bottom: 30px; }
+  .slip-header .logo-slot { display: flex; justify-content: center; margin-bottom: 10px; }
+  .slip-header h1 { font-size: 20px; color: var(--navy); }
+  .slip-header .sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  .slip-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed var(--border); font-size: 14px; }
+  .slip-row span:first-child { color: var(--text-muted); }
+  .slip-row span:last-child { font-weight: 700; }
+
+  .score-block { text-align: center; margin: 30px 0; padding: 24px; background: var(--bg); border-radius: 10px; }
+  .score-block .big-score { font-size: 42px; font-weight: 700; color: var(--navy); font-family: 'Poppins', sans-serif; }
+  .score-block .out-of { font-size: 14px; color: var(--text-muted); }
+  .pass-pill { display: inline-block; margin-top: 10px; padding: 6px 18px; border-radius: 20px; font-weight: 700; font-size: 13px; }
+  .pass-pill.pass { background: #ECFDF5; color: var(--emerald-dark); }
+  .pass-pill.fail { background: var(--danger-bg); color: var(--danger); }
+
+  .slip-footer { text-align: center; margin-top: 30px; font-size: 11px; color: var(--text-muted); }
+  .print-controls { max-width: 600px; margin: 0 auto 16px; text-align: right; }
+
+  @media print {
+    body { background: white; padding: 0; }
+    .print-controls { display: none; }
+    .slip { box-shadow: none; max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="print-controls">
+  <button class="btn btn-primary" onclick="window.print()">🖨 Print / Save as PDF</button>
+</div>
+
+<div class="slip" id="slipContent">
+  <div class="slip-header">
+    <div class="logo-slot brand-logo-slot">
+      <svg width="40" height="40" viewBox="0 0 100 100"><polygon points="50,3 93,26 93,74 50,97 7,74 7,26" fill="#F5941F"/><text x="50" y="66" font-family="Poppins, sans-serif" font-weight="700" font-size="48" fill="#0F2647" text-anchor="middle">S</text></svg>
+    </div>
+    <h1><span class="brand-name-text">SyncBee</span> — Examination Result Slip</h1>
+    <div class="sub">Issued by Mariobee SyncBee Examination System</div>
+  </div>
+
+  <div id="slipBody">Loading...</div>
+</div>
+
+<script>
+const API = window.location.origin;
+const params = new URLSearchParams(window.location.search);
+const attemptId = params.get('attempt_id');
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+async function load() {
+  try {
+    const res = await fetch(`${API}/api/results/slip/${encodeURIComponent(attemptId)}`);
+    const d = await res.json();
+
+    if (!res.ok) {
+      document.getElementById('slipBody').innerHTML = `<p style="text-align:center; color:var(--danger);">${escapeHtml(d.error)}</p>`;
+      return;
+    }
+
+    const passed = d.score >= d.passing_marks;
+    const pct = Math.round((d.score / d.total_marks) * 100);
+
+    document.getElementById('slipBody').innerHTML = `
+      <div class="slip-row"><span>Student Name</span><span>${escapeHtml(d.student_name)}</span></div>
+      <div class="slip-row"><span>Examination</span><span>${escapeHtml(d.exam_title)}</span></div>
+      <div class="slip-row"><span>Date Completed</span><span>${escapeHtml((d.finished_at || '').slice(0, 10))}</span></div>
+      <div class="slip-row"><span>Reference ID</span><span style="font-family:monospace; font-size:12px;">${escapeHtml(d.attempt_id)}</span></div>
+
+      <div class="score-block">
+        <div class="big-score">${d.score} <span class="out-of">/ ${d.total_marks}</span></div>
+        <div style="font-size:13px; color:var(--text-muted); margin-top:4px;">${pct}%</div>
+        <div class="pass-pill ${passed ? 'pass' : 'fail'}">${passed ? 'PASS' : 'FAIL'}</div>
+      </div>
+
+      <div class="slip-row"><span>Passing Mark</span><span>${d.passing_marks}</span></div>
+      <div class="slip-row"><span>Status</span><span>${escapeHtml(d.status)}</span></div>
+    `;
+
+    document.title = `Result Slip — ${d.student_name}`;
+  } catch (err) {
+    document.getElementById('slipBody').innerHTML = `<p style="text-align:center; color:var(--danger);">Connection failed: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+load();
+</script>
+
+<script src="/branding.js"></script>
+</body>
+</html>

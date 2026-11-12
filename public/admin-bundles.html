@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Exam Bundles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .topbar { background: var(--navy); color: white; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar .brand { display: flex; align-items: center; gap: 10px; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 18px; }
+  .nav-links { display: flex; gap: 14px; flex-wrap: wrap; }
+  .nav-links a { color: #B9C6D6; text-decoration: none; font-size: 13px; }
+  .nav-links a:hover, .nav-links a.active { color: white; }
+
+  .content { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+  .page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .page-head h2 { font-size: 22px; }
+
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  th, td { text-align: left; padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--border); }
+  th { background: var(--bg); color: var(--text-muted); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .pill.published { background: #ECFDF5; color: var(--emerald-dark); }
+  .pill.unpublished { background: var(--danger-bg); color: var(--danger); }
+  .pill.mode { background: #EFF6FF; color: #1E40AF; margin-left: 6px; }
+  .row-actions button { padding: 6px 10px; font-size: 12px; margin-right: 6px; }
+  .empty { text-align: center; color: var(--text-muted); padding: 60px 20px; }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 998; padding: 20px; }
+  .modal-backdrop.show { display: flex; }
+  .modal-box { background: white; border-radius: 16px; padding: 28px; max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto; }
+  .modal-box h3 { font-size: 18px; margin-bottom: 18px; }
+  .form-row { margin-bottom: 14px; }
+  .form-row label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 5px; }
+  .form-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 10px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .modal-actions button { flex: 1; }
+
+  .item-picker { display: flex; gap: 10px; margin-bottom: 10px; }
+  .item-list { border: 1px solid var(--border); border-radius: 8px; max-height: 150px; overflow-y: auto; }
+  .item-list-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .item-list-row:last-child { border-bottom: none; }
+  .duration-badge { background: var(--bg); border-radius: 8px; padding: 8px 12px; font-size: 13px; text-align: center; margin-top: 8px; }
+</style>
+</head>
+<body class="has-sidebar">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+
+<div id="sidebar-slot"></div>
+
+<div class="content">
+  <div class="page-head">
+    <h2>Exam Bundles</h2>
+    <button class="btn btn-primary" onclick="openCreateModal()">+ Create New Bundle</button>
+  </div>
+  <div id="tableContainer"></div>
+</div>
+
+<div class="modal-backdrop" id="bundleModal">
+  <div class="modal-box">
+    <h3 id="modalTitle">Create Bundle</h3>
+    <form id="bundleForm">
+      <div class="form-row">
+        <label>Bundle Title *</label>
+        <input class="input" id="bundle_title" required />
+      </div>
+      <div class="form-row">
+        <label>Description</label>
+        <input class="input" id="description" />
+      </div>
+      <div class="form-two-col">
+        <div class="form-row">
+          <label>Start Time *</label>
+          <input class="input" type="datetime-local" id="start_time" required />
+        </div>
+        <div class="form-row">
+          <label>End Time *</label>
+          <input class="input" type="datetime-local" id="end_time" required />
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Navigation Mode *</label>
+        <select class="input" id="navigation_mode">
+          <option value="strict_sequential">Strict Sequential — finish & submit each exam before the next is even visible</option>
+          <option value="sequential_unlock">Sequential Unlock — all exams visible, but locked until the previous is submitted</option>
+                    <option value="free">Free Navigation — switch between exams anytime</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Show Result To Student</label>
+        <select class="input" id="show_result">
+          <option value="After Publish">After Publish</option>
+          <option value="Immediately">Immediately</option>
+          <option value="Never">Never</option>
+        </select>
+      </div>
+      <div class="form-two-col">
+        <div class="form-row">
+          <label>Class</label>
+          <select class="input" id="class_id"><option value="">— None —</option></select>
+        </div>
+        <div class="form-row">
+          <label>Program</label>
+          <select class="input" id="program_id"><option value="">— None —</option></select>
+        </div>
+      </div>
+      <div class="checkbox-row"><input type="checkbox" id="is_global" /> <label style="margin:0">Global (visible to all classes/programs, overrides Class/Program above)</label></div>      <div class="checkbox-row"><input type="checkbox" id="published" /> <label style="margin:0">Published (visible to students)</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="anti_cheat_enabled" /> <label style="margin:0">Enable Anti-Cheat for the whole bundle (overrides each exam's own setting)</label></div>
+
+      <div class="form-row" style="border-top:1px solid var(--border); padding-top:16px; margin-top:16px;">
+        <label>Exams in this Bundle (in order)</label>
+        <div class="item-picker">
+          <select class="input" id="examSelector"></select>
+          <button type="button" class="btn btn-ghost" onclick="addItemToBundle()">+ Add</button>
+        </div>
+        <div class="item-list" id="itemList"></div>
+        <div class="duration-badge" id="durationBadge">Total duration: 0 min (0 exam(s))</div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveBtn">Save Bundle</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin;
+let bundles = [];
+let allExams = [];
+let currentItems = []; // [{exam_code, exam_title, duration_minutes}]
+let editingCode = null;
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+function toDatetimeLocal(sqlDateTime) {
+  if (!sqlDateTime) return '';
+  return sqlDateTime.replace(' ', 'T').slice(0, 16);
+}
+function toSqlDateTime(datetimeLocal) {
+  return datetimeLocal.replace('T', ' ') + ':00';
+}
+
+async function loadExamOptions() {
+  const res = await fetch(`${API}/api/exams`);
+  allExams = await res.json();
+  document.getElementById('examSelector').innerHTML =
+    '<option value="">— Select an exam to add —</option>' +
+    allExams.map(e => `<option value="${e.exam_code}">${escapeHtml(e.exam_title)} (${e.duration_minutes} min)</option>`).join('');
+}
+
+async function loadClassProgramOptions() {
+  const [classes, programs] = await Promise.all([
+    fetch(`${API}/api/exams/meta/classes`).then(r => r.json()),
+    fetch(`${API}/api/exams/meta/programs`).then(r => r.json())
+  ]);
+  document.getElementById('class_id').innerHTML =
+    '<option value="">— None —</option>' + classes.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  document.getElementById('program_id').innerHTML =
+    '<option value="">— None —</option>' + programs.map(p => `<option value="${p.id}">${escapeHtml(p.program_name)}</option>`).join('');
+}
+
+async function loadBundles() {
+  try {
+    const res = await fetch(`${API}/api/bundles`);
+    bundles = await res.json();
+    renderTable();
+  } catch (err) {
+    document.getElementById('tableContainer').innerHTML = `<div class="empty">Failed to load: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function renderTable() {
+  const container = document.getElementById('tableContainer');
+  if (bundles.length === 0) {
+    container.innerHTML = `<div class="empty">No bundles yet. Click "+ Create New Bundle" to combine multiple exams into one session.</div>`;
+    return;
+  }
+
+  const modeLabels = { strict_sequential: 'Strict Sequential', sequential_unlock: 'Sequential Unlock', free: 'Free Navigation' };
+
+  const rows = bundles.map(b => `
+    <tr>
+      <td><strong>${escapeHtml(b.bundle_title)}</strong><br><span style="font-family:monospace; font-size:11px; color:var(--text-muted);">${escapeHtml(b.bundle_code)}</span></td>
+      <td>${b.total_duration_minutes} min</td>
+      <td>
+        <span class="pill ${b.published ? 'published' : 'unpublished'}">${b.published ? 'Published' : 'Unpublished'}</span>
+        <span class="pill mode">${modeLabels[b.navigation_mode]}</span>
+      </td>
+      <td class="row-actions">
+        <button class="btn btn-ghost" onclick="editBundle('${b.bundle_code}')">Edit</button>
+        <button class="btn btn-ghost" style="color:var(--danger)" onclick="deleteBundle('${b.bundle_code}')">Delete</button>
+      </td>
+    </tr>`).join('');
+
+  container.innerHTML = `<table><thead><tr><th>Title / Code</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function openCreateModal() {
+  editingCode = null;
+  currentItems = [];
+  document.getElementById('modalTitle').textContent = 'Create Bundle';
+  document.getElementById('bundleForm').reset();
+  renderItemList();
+  document.getElementById('bundleModal').classList.add('show');
+}
+
+async function editBundle(code) {
+  const res = await fetch(`${API}/api/bundles/${encodeURIComponent(code)}`);
+  const bundle = await res.json();
+  editingCode = code;
+  currentItems = bundle.items.map(i => ({ exam_code: i.exam_code, exam_title: i.exam_title, duration_minutes: i.duration_minutes }));
+document.getElementById('anti_cheat_enabled').checked = !!bundle.anti_cheat_enabled;
+  document.getElementById('modalTitle').textContent = 'Edit Bundle';
+  document.getElementById('bundle_title').value = bundle.bundle_title;
+  document.getElementById('description').value = bundle.description || '';
+  document.getElementById('start_time').value = toDatetimeLocal(bundle.start_time);
+  document.getElementById('end_time').value = toDatetimeLocal(bundle.end_time);
+  document.getElementById('navigation_mode').value = bundle.navigation_mode;
+  document.getElementById('show_result').value = bundle.show_result;
+    document.getElementById('class_id').value = bundle.class_id || '';
+  document.getElementById('program_id').value = bundle.program_id || '';
+  document.getElementById('is_global').checked = !!bundle.is_global;
+  document.getElementById('published').checked = !!bundle.published;
+
+  renderItemList();
+  document.getElementById('bundleModal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('bundleModal').classList.remove('show');
+}
+
+function addItemToBundle() {
+  const select = document.getElementById('examSelector');
+  const code = select.value;
+  if (!code) return;
+  if (currentItems.find(i => i.exam_code === code)) { alert('Already added.'); return; }
+  const exam = allExams.find(e => e.exam_code === code);
+  currentItems.push({ exam_code: exam.exam_code, exam_title: exam.exam_title, duration_minutes: exam.duration_minutes });
+  select.value = '';
+  renderItemList();
+}
+
+function removeItem(code) {
+  currentItems = currentItems.filter(i => i.exam_code !== code);
+  renderItemList();
+}
+
+function moveItem(index, direction) {
+  const newIndex = index + direction;
+  if (newIndex < 0 || newIndex >= currentItems.length) return;
+  [currentItems[index], currentItems[newIndex]] = [currentItems[newIndex], currentItems[index]];
+  renderItemList();
+}
+
+function renderItemList() {
+  const list = document.getElementById('itemList');
+  if (currentItems.length === 0) {
+    list.innerHTML = `<div style="padding:16px; text-align:center; color:var(--text-muted); font-size:13px;">No exams added yet.</div>`;
+  } else {
+    list.innerHTML = currentItems.map((item, i) => `
+      <div class="item-list-row">
+        <span>${i + 1}. ${escapeHtml(item.exam_title)} (${item.duration_minutes} min)</span>
+        <span>
+          <button type="button" class="btn btn-ghost" style="padding:3px 8px;" onclick="moveItem(${i}, -1)">↑</button>
+          <button type="button" class="btn btn-ghost" style="padding:3px 8px;" onclick="moveItem(${i}, 1)">↓</button>
+          <button type="button" class="btn btn-ghost" style="padding:3px 8px; color:var(--danger);" onclick="removeItem('${item.exam_code}')">✕</button>
+        </span>
+      </div>`).join('');
+  }
+
+  const total = currentItems.reduce((sum, i) => sum + i.duration_minutes, 0);
+  document.getElementById('durationBadge').textContent = `Total duration: ${total} min (${currentItems.length} exam(s))`;
+}
+
+document.getElementById('bundleForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (currentItems.length < 2) {
+    alert('A bundle needs at least 2 exams. For a single exam, just use the regular Exams page.');
+    return;
+  }
+
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  const payload = {
+    bundle_title: document.getElementById('bundle_title').value,
+    description: document.getElementById('description').value,
+    start_time: toSqlDateTime(document.getElementById('start_time').value),
+    end_time: toSqlDateTime(document.getElementById('end_time').value),
+    anti_cheat_enabled: document.getElementById('anti_cheat_enabled').checked ? 1 : 0,
+    navigation_mode: document.getElementById('navigation_mode').value,
+    show_result: document.getElementById('show_result').value,
+    class_id: document.getElementById('class_id').value ? parseInt(document.getElementById('class_id').value) : null,
+    program_id: document.getElementById('program_id').value ? parseInt(document.getElementById('program_id').value) : null,
+    is_global: document.getElementById('is_global').checked ? 1 : 0,
+    published: document.getElementById('published').checked ? 1 : 0
+  };
+
+  try {
+    const url = editingCode ? `${API}/api/bundles/${editingCode}` : `${API}/api/bundles`;
+    const method = editingCode ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const bundle = await res.json();
+
+    if (!res.ok) { alert(bundle.error || 'Failed to save.'); btn.disabled = false; btn.textContent = 'Save Bundle'; return; }
+
+    await fetch(`${API}/api/bundles/${bundle.bundle_code}/items`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ exam_codes: currentItems.map(i => i.exam_code) })
+    });
+
+    closeModal();
+    await loadBundles();
+  } catch (err) {
+    alert('Connection failed: ' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save Bundle';
+  }
+});
+
+async function deleteBundle(code) {
+  if (!confirm('Delete this bundle? (The individual exams inside it are NOT deleted.)')) return;
+  await fetch(`${API}/api/bundles/${code}`, { method: 'DELETE' });
+  loadBundles();
+}
+
+async function checkAdminSession() {
+  try {
+    const res = await fetch(`${API}/api/auth/admin-me`);
+    const data = await res.json();
+    if (!data.success) { window.location.href = '/admin-login'; return; }
+        await loadExamOptions();
+    await loadClassProgramOptions();
+    loadBundles();
+  } catch (err) {
+    window.location.href = '/admin-login';
+  }
+}
+checkAdminSession();
+</script>
+
+<script src="/sidebar.js"></script>
+<script src="/branding.js"></script>
+</body>
+</html>

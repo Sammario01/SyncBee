@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SyncBee — Features</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .content { max-width: 1200px; margin: 0 auto; padding: 32px 24px 60px; }
+  .page-head h2 { font-size: 22px; }
+  .sub { color: var(--text-muted); font-size: 13px; margin: 4px 0 20px; line-height: 1.5; }
+  .group-title { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--text-muted); margin: 22px 0 10px; }
+  .feature { background: white; border-radius: 14px; padding: 18px 22px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(15,38,71,0.06); display: flex; gap: 18px; align-items: flex-start; }
+  .feature .body { flex: 1; }
+  .feature h3 { font-size: 16px; margin-bottom: 4px; }
+  .feature .desc { font-size: 13px; color: var(--text-muted); line-height: 1.55; }
+  .feature .note { font-size: 12px; margin-top: 8px; color: #92400E; background: #FEF3C7; border-radius: 8px; padding: 6px 10px; display: inline-block; }
+  .feature .hint { font-size: 12px; margin-top: 8px; color: #1E40AF; background: #EFF6FF; border-radius: 8px; padding: 6px 10px; display: none; }
+  .feature .hint.show { display: inline-block; }
+  .state { font-size: 11px; font-weight: 700; margin-top: 6px; text-align: center; color: var(--text-muted); }
+  .state.on { color: var(--emerald-dark); }
+
+  .switch { position: relative; width: 46px; height: 26px; flex-shrink: 0; display: block; margin: 0 auto; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; inset: 0; background: #CBD5E1; border-radius: 26px; cursor: pointer; transition: .15s; }
+  .slider::before { content: ''; position: absolute; height: 20px; width: 20px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: .15s; }
+  .switch input:checked + .slider { background: var(--emerald); }
+  .switch input:checked + .slider::before { transform: translateX(20px); }
+  .switch input:disabled + .slider { opacity: .5; cursor: wait; }
+
+  .others { background: white; border-radius: 14px; padding: 18px 22px; margin-top: 26px; box-shadow: 0 1px 4px rgba(15,38,71,0.06); }
+  .others h3 { font-size: 15px; margin-bottom: 10px; }
+  .others li { font-size: 13px; color: var(--text-muted); margin: 6px 0 6px 18px; line-height: 1.5; }
+  .others li strong { color: var(--navy); }
+  .saved { position: fixed; bottom: 20px; right: 20px; background: var(--navy); color: white; padding: 9px 16px; border-radius: 10px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .saved.show { opacity: 1; }
+</style>
+</head>
+<body class="has-sidebar">
+  <div id="sidebar-slot"></div>
+  <div class="main">
+    <div class="content">
+      <div class="page-head"><h2>⚙ Features</h2></div>
+      <div class="sub">These optional features stay switched off until you turn them on, so nothing starts running on its own.
+        A change applies to the server straight away. Candidates who are already inside an exam pick it up within about 15 seconds.</div>
+      <div id="list">Loading…</div>
+
+      <div class="others">
+        <h3>Already controlled elsewhere</h3>
+        <ul>
+          <li><strong>Anti-cheat and fullscreen</strong>: switched on per exam (or per bundle) in the Exam Builder and Bundle Builder.</li>
+          <li><strong>Publishing and result visibility</strong>: set per exam.</li>
+          <li><strong>Exam bundles, local students, classes and subjects</strong>: only act when you create something, so they have no switch.</li>
+          <li><strong>Answer autosave and the license check</strong>: always on. They protect candidates' work and your license.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="saved" id="saved">Saved</div>
+
+<script>
+const API = window.location.origin;
+let state = {};
+let defs = [];
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+function toast(text) {
+  const el = document.getElementById('saved');
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => el.classList.remove('show'), 1800);
+}
+
+function hintFor(key) {
+  if (key === 'risk_scoring' && state.risk_scoring && !state.replay_recording) {
+    return 'Activity recording is off, so scores will use the strike log only. Turn on “Record exam activity” for fuller scores.';
+  }
+  return '';
+}
+
+function render() {
+  const groups = [...new Set(defs.map(d => d.group))];
+  document.getElementById('list').innerHTML = groups.map(g => `
+    <div class="group-title">${esc(g)}</div>
+    ${defs.filter(d => d.group === g).map(d => {
+      const hint = hintFor(d.key);
+      return `<div class="feature">
+        <div class="body">
+          <h3>${esc(d.label)}</h3>
+          <div class="desc">${esc(d.description)}</div>
+          ${d.note ? `<div class="note">${esc(d.note)}</div>` : ''}
+          <div class="hint ${hint ? 'show' : ''}" id="hint-${d.key}">${esc(hint)}</div>
+        </div>
+        <div>
+          <label class="switch"><input type="checkbox" data-key="${d.key}" ${state[d.key] ? 'checked' : ''}><span class="slider"></span></label>
+          <div class="state ${state[d.key] ? 'on' : ''}">${state[d.key] ? 'ON' : 'OFF'}</div>
+        </div>
+      </div>`;
+    }).join('')}`).join('');
+}
+
+document.getElementById('list').addEventListener('change', async (e) => {
+  const box = e.target.closest('input[data-key]');
+  if (!box) return;
+  const key = box.dataset.key;
+  const want = box.checked;
+  box.disabled = true;
+  try {
+    const res = await fetch(`${API}/api/features`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ features: { [key]: want } })
+    });
+    if (res.status === 401) { window.location.href = '/admin-login'; return; }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || data.message || 'Could not save.');
+    state = data.features;
+    toast('Saved');
+  } catch (err) {
+    box.checked = !want;
+    alert('Could not change this setting: ' + err.message);
+  }
+  render();
+});
+
+async function start() {
+  try {
+    const res = await fetch(`${API}/api/features`);
+    if (res.status === 401) { window.location.href = '/admin-login'; return; }
+    const data = await res.json();
+    state = data.features;
+    defs = data.definitions;
+    render();
+  } catch (err) {
+    document.getElementById('list').textContent = 'Failed to load: ' + err.message;
+  }
+}
+start();
+</script>
+<script src="/sidebar.js"></script>
+<script src="/branding.js"></script>
+</body>
+</html>
