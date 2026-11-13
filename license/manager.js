@@ -157,7 +157,8 @@ function readSignedTerms(signedPayload, signatureB64) {
       status: p.status,
       expiry: p.expiry_date,
       max_devices: p.max_devices ?? null,
-      max_candidate_computers: p.max_candidate_computers ?? null
+      max_candidate_computers: p.max_candidate_computers ?? null,
+            min_supported_version: p.min_supported_version ?? null
     };
   } catch (err) {
     return null;
@@ -316,6 +317,7 @@ function getLicenseInfo() {
     offline_days: ev.offline_days ?? null,
     max_devices: ev.terms ? ev.terms.max_devices : null,
     max_candidate_computers: ev.terms ? ev.terms.max_candidate_computers : null,
+        min_supported_version: c.min_supported_version || (ev.terms && ev.terms.min_supported_version) || null,
     signed: !!(ev.terms && ev.terms.source === 'signed'),
     computer_name: os.hostname()
   };

@@ -238,6 +238,9 @@
   <img src="./img/mariobee.png" alt="Mariobee Technologies" class="company-logo">
   <span>Powered by <strong class="brand-name">SyncBee</strong> · <strong>Mariobee Technologies Limited</strong></span>
 </div>
+<div style="text-align:center; font-size:11px; color:rgba(255,255,255,0.45); margin-top:2px;">
+  <span id="appVersion">v—</span>
+</div>
 
 <script src="/branding.js"></script>
 <script>
@@ -395,6 +398,11 @@ fetch('/api/license/public-status')
     })
     .catch(() => {});
 </script>
-
+<script>
+  fetch('/api/version')
+    .then(r => r.json())
+    .then(d => { document.getElementById('appVersion').textContent = 'v' + d.version; })
+    .catch(() => {});
+</script>
 </body>
 </html>

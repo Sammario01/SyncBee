@@ -68,12 +68,16 @@ app.on('web-contents-created', (event, contents) => {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  // server/app.js calls app.listen(4000) as a side effect of being required.
-    require('./integrity').enforceIntegrityOrQuit().catch((e) => {
+  // Refuse to start if app.asar was modified (packaged builds only; dev skips).
+  require('./integrity').enforceIntegrityOrQuit().catch((e) => {
     console.error('[integrity] fatal:', e);
     process.exit(1);
   });
+  // Auto-update + remote kill-switch (packaged builds only; dev skips).
+  const updater = require('./updater');
+  // server/app.js calls app.listen(4000) as a side effect of being required.
   require('../server/app.js');
+  updater.initUpdater();
   const license = require('../license/manager');
 
   let mainWindow = null;

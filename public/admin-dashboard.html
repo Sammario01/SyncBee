@@ -201,10 +201,10 @@
   <div class="main">
 
     <div class="header-row">
-      <div>
-        <h1 id="welcomeMsg">Welcome back, Admin</h1>
-        <div class="sub">Mariobee SyncBee Examination Control Center · v1.0.0</div>
-      </div>
+     <div>
+  <h1 id="welcomeMsg">Welcome back, Admin</h1>
+  <div class="sub">Mariobee SyncBee Examination Control Center · <span id="appVersion">v—</span></div>
+</div>
       <div class="header-right">
         <div class="time" id="clockDisplay">--:--:--</div>
         <div id="dateDisplay"></div>
@@ -932,5 +932,12 @@ checkAdminSession();
 </script>
 <script src="/sidebar.js"></script>
 <script src="/branding.js"></script>
+<script>
+  fetch('/api/version')
+    .then(r => r.json())
+    .then(d => { document.getElementById('appVersion').textContent = 'v' + d.version; })
+    .catch(() => {});
+</script>
+</body>
 </body>
 </html>

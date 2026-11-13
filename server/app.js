@@ -142,6 +142,11 @@ server.on('error', (err) => {
   process.exit(1);
 });
 
+
+// Tells the UI what version is actually installed, so the footer/login pages
+// don't show a hardcoded version that goes stale after every update.
+app.get('/api/version', (req, res) => res.json({ version: require('../package.json').version }));
+
 app.use(express.static(path.join(__dirname, '../public'), { extensions: ['html'] }));
 app.get('/', (req, res) => res.redirect('/login'));
 
